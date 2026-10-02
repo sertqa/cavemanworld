@@ -1,0 +1,30 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Vehicle headings and squid ink review</title>
+<style>body{background:#192c2b;color:#eee2bb;font:15px monospace;margin:20px}canvas{display:block;border:2px solid #acaa7a;max-width:100%;height:auto;margin:14px 0}button{background:#345553;color:#eee2bb;padding:10px 15px;font:inherit}h2{font-size:18px}</style>
+<h1>Vehicles face their rider</h1><p>East → · South ↓ · West ← · North ↑</p><canvas id="vehicles" width="1100" height="680" aria-label="Glider, scooter and raft in four directions"></canvas>
+<h2>Giant squid ink</h2><p>Growing clouds briefly obscure vision. Swim out to recover. HUD controls remain clear.</p><button id="inkToggle">Show ink attack</button><canvas id="ink" width="1000" height="450" aria-label="Ocean ink cloud and obscured view"></canvas>
+<script type="module">
+import {drawTransport,aquaticOrBoss} from '../src/frontier-art.js';
+import {AdventureArt} from '../src/adventure-art.js';
+import {PixelWorldRenderer} from '../src/pixel-renderer.js';
+import {OceanInkRegistry} from '../src/ocean-ink.js';
+import {CAMERA_TILT} from '../src/camera.js';
+const art=new AdventureArt(),v=document.querySelector('#vehicles').getContext('2d'),ids=['crystal-glider','wood-scooter','reed-raft'];
+v.fillStyle='#7b9773';v.fillRect(0,0,1100,680);
+for(let row=0;row<3;row++)for(let col=0;col<4;col++){
+ const id=ids[row],x=145+col*270,y=195+row*220;
+ v.fillStyle='#f3dfac';v.font='bold 14px monospace';v.textAlign='center';v.fillText(`${id} · ${['E','S','W','N'][col]}`,x,y+22);
+ v.save();v.translate(x,y);v.scale(.88,.88*CAMERA_TILT);const p={x:0,y:0,facing:col*Math.PI/2,moving:true,vehicleId:id,gliding:row===0,flightHeight:row===0?46:0,vehicle:row===0?{glider:true}:row===2?{boat:true}:{},swimming:row===2};drawTransport(v,p,0);art.player(v,{...p,swimming:false},{equippedGear:null,equippedTool:{id,type:'transport'}},0);v.restore();
+}
+const image=document.querySelector('#ink'),c=image.getContext('2d'),registry=new OceanInkRegistry(),p={x:0,y:0,facing:Math.PI/2,layer:'ocean'},camera={x:0,y:0};
+const renderer={ctx:c,dpr:1,width:1000,height:450};let active=false;
+function render(){
+ c.setTransform(1,0,0,1,0,0);c.fillStyle='#387d84';c.fillRect(0,0,1000,450);c.save();c.translate(500,225);c.scale(1,CAMERA_TILT);
+ for(let i=0;i<28;i++){const x=(i%7)*140-430,y=Math.floor(i/7)*135-230;c.fillStyle=i%2?'#559c91':'#82aaa1';c.fillRect(x,y,24,8);c.fillRect(x+8,y-20,6,30);}
+ aquaticOrBoss(art,c,{x:180,y:-35,kind:'giantSquid',aquatic:true,radius:43,facing:Math.PI,alive:true},1200);
+ art.player(c,p,{equippedGear:null,equippedTool:null},0);
+ registry.clear(p);if(active){registry.spray({x:180,y:-35,targetX:0,targetY:0},0);registry.update(1,1200,p);}
+ PixelWorldRenderer.prototype.drawInkClouds.call(renderer,c,registry,'ocean',{left:-500,right:500,top:-300,bottom:300},1200);c.restore();PixelWorldRenderer.prototype.drawInkVision.call(renderer,p,camera,1,'ocean');
+ c.fillStyle='#294a47';c.fillRect(12,12,200,36);c.fillStyle='#f4ebbe';c.font='bold 16px monospace';c.fillText('↑ SURFACE · V',25,36);c.fillText(active?'INKED · swim out to clear':'Clear ocean view',25,420);
+}
+document.querySelector('#inkToggle').onclick=()=>{active=!active;render();};render();
+</script></html>

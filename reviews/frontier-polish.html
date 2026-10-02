@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><title>Frontier visual review</title>
+<style>body{background:#182b2a;color:#eadcb1;font:16px monospace;margin:24px}canvas{display:block;background:#819b6c;border:2px solid #b9aa80;width:100%;max-width:1000px;margin:12px 0}section{display:flex;gap:24px;max-width:1000px}section>div{flex:1}h2{font-size:18px}button{background:#314f4c;color:#eadcb1;padding:10px;font:inherit}</style>
+<h1>Frontier visual review</h1><p>Rock slopes, visible trail boundaries, flying / landed pilot, and ground splat.</p>
+<canvas id="mountain" width="1000" height="500" aria-label="Mountain rock faces and summit trail"></canvas>
+<section><div><h2>Gliding · moving</h2><canvas id="flying" width="460" height="300"></canvas></div><div><h2>Landed · stationary</h2><canvas id="landed" width="460" height="300"></canvas></div></section>
+<section><div><h2>Bigfoot splat · 8 seconds</h2><canvas id="puddle" width="460" height="300"></canvas></div><div><h2>Flight direction</h2><button id="turn">Turn pilot</button><p>Movement lifts the pilot. Stopping returns feet to the ground.</p></div></section>
+<script type="module">
+import {drawMountains,drawTransport} from '../src/frontier-art.js';
+import {AdventureArt} from '../src/adventure-art.js';
+import {MOUNTAINS} from '../src/frontier-world.js';
+import {PixelWorldRenderer} from '../src/pixel-renderer.js';
+import {ProjectileRegistry,FecesPuddle} from '../src/combat-objects.js';
+import {CAMERA_TILT} from '../src/camera.js';
+const m=MOUNTAINS[0],mc=document.querySelector('#mountain').getContext('2d');mc.translate(500,240);mc.scale(.108,.108*CAMERA_TILT);mc.translate(-m.x,-m.y);drawMountains(mc,{left:m.x-4700,right:m.x+4700,top:m.y-5000,bottom:m.y+5000},0);
+const art=new AdventureArt(),inventory={equippedGear:null,equippedTool:{id:'crystal-glider',type:'transport'}};
+let facing=0;
+function pilot(id,moving){const c=document.querySelector('#'+id).getContext('2d');c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,460,300);c.translate(230,235);c.scale(1.45,1.45*CAMERA_TILT);const p={x:0,y:0,facing,moving,vehicleId:'crystal-glider',vehicle:{glider:true},gliding:moving,flightHeight:moving?46:0};drawTransport(c,p,0);art.player(c,p,inventory,0);}
+function render(){pilot('flying',true);pilot('landed',false);}
+document.querySelector('#turn').onclick=()=>{facing+=Math.PI/2;render();};render();
+const c=document.querySelector('#puddle').getContext('2d');c.translate(230,140);c.scale(1.3,1.3*CAMERA_TILT);const registry=new ProjectileRegistry();registry.puddles.push(new FecesPuddle({x:0,y:0,layer:'surface',sourceId:'bigfoot'},0));PixelWorldRenderer.prototype.drawPuddles.call({},c,registry,'surface',{left:-200,right:200,top:-200,bottom:200},500);art.player(c,{x:0,y:0,facing:Math.PI/2,moving:false}, {equippedGear:null,equippedTool:null},0);
+</script></html>
