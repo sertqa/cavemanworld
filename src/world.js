@@ -205,7 +205,7 @@ for(const [layer,depth] of [['abyss',3],['core',4]]){
 }
 for(const town of TOWNS){
  PATHS.push({name:`${town.name} Approach`,points:town.approach||[town.connection,[town.x,town.y]]});
- for(const b of TOWN_BUILDINGS.filter(b=>b.town===town.id&&b.id!=='lucky-hearth')){const side=b.x+(b.x<town.x?-250:250);PATHS.push({name:`${b.name} Lane`,points:b.type==='casino'?[[town.x,town.y],[town.x,town.y+280],[b.x,town.y+280],[b.x,b.y+126]]:b.type==='house'?[[town.x,town.y],[town.x,town.y+950],[b.x,town.y+950],[b.x,b.y+126]]:[[town.x,town.y],[b.x,town.y],[b.x,b.y+126]]});}
+ for(const b of TOWN_BUILDINGS.filter(b=>b.town===town.id&&b.id!=='lucky-hearth')){const side=b.x+(b.x<town.x?-250:250);PATHS.push({name:`${b.name} Lane`,points:b.type==='casino'?[[town.x,town.y],[town.x,town.y+280],[b.x,town.y+280],[b.x,b.y+126]]:['house','smoke'].includes(b.type)?[[town.x,town.y],[town.x,town.y+950],[b.x,town.y+950],[b.x,b.y+126]]:[[town.x,town.y],[b.x,town.y],[b.x,b.y+126]]});}
 }
 PATHS.push({name:'Lucky Hearth Lane',points:[[10600,7600],[10600,7660],[8800,7660],[8800,7626]]});
 PATHS.push(...FRONTIER_PATHS);

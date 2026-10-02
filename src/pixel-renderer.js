@@ -21,7 +21,7 @@ export class PixelWorldRenderer extends WorldRenderer {
     this.dpr=1;this.width=this.canvas.clientWidth;this.height=this.canvas.clientHeight;
     this.canvas.width=Math.round(this.width);this.canvas.height=Math.round(this.height);
   }
-  render({camera,zoom,player,layer,zones,showZones,selectedZone,editZones,spawnables,structures,creatures,drops,projectiles,oceanInk,fishing,targetNode,targetDrop,inventory,time,frontier}){
+  render({camera,zoom,player,layer,zones,showZones,selectedZone,editZones,spawnables,structures,creatures,drops,projectiles,oceanInk,vape,fishing,targetNode,targetDrop,inventory,time,frontier}){
     const ctx=this.ctx,d=this.dpr,b=this.viewBounds(camera,zoom);
     ctx.setTransform(d,0,0,d,0,0);ctx.imageSmoothingEnabled=false;ctx.fillStyle=layer==='surface'?'#60764a':'#202b2e';ctx.fillRect(0,0,this.width,this.height);
     ctx.save();ctx.translate(this.width/2,this.height/2);ctx.scale(zoom,zoom*CAMERA_TILT);ctx.translate(-camera.x,-camera.y);
@@ -67,6 +67,7 @@ export class PixelWorldRenderer extends WorldRenderer {
     ctx.restore();
     this.drawMobTags(visibleCreatures,camera,zoom,layer);
     this.drawNpcTags(visibleNpcs,camera,zoom,frontier?.quests);
+    vape?.draw(ctx,camera,zoom,this.width,this.height,time);
     this.drawInkVision(player,camera,zoom,layer);
   }
   drawWaterMotion(ctx,b,time){

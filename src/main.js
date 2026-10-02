@@ -1,3 +1,6 @@
+import {VapeSession,loadFlavor} from './vaping.js';
+import {VAPE_ID,VAPE_FLAVORS,vapeFlavor} from './vape-data.js';
+import {worldToScreen} from './camera.js';
 import {OceanInkRegistry} from './ocean-ink.js';
 import {updateGliding} from './gliding.js';
 import {DivingSession,StatusEffects,QuestBook,NpcRegistry,FrontierNodes} from './expeditions.js';
@@ -47,7 +50,7 @@ let openCampfire=null;
 const creatures=new CreatureRegistry();populateCreatures(creatures);
 const vitals=new PlayerVitals();
 const drops=new LootRegistry(),projectiles=new ProjectileRegistry(),oceanInk=new OceanInkRegistry();
-const fishing=new FishingSession();
+const fishing=new FishingSession(),vape=new VapeSession();
 export { worldBridge, zones };
 
 // URL start points make distant transitions reproducible during local testing.
@@ -59,7 +62,7 @@ const startLake=LAKES.find(l=>l.id===params.get('start'));
 const startBridge=startLayer==='surface'&&params.get('start')==='mire-crossing'?{x:8200,y:7850}:null;
 const requestedMountain=MOUNTAINS.find(m=>params.get('start')===m.id||params.get('start')===m.id+'-summit');
 const frontierStart=startLayer==='ocean'?{x:coastline(14500)+(params.get('start')==='deep-ocean'?1800:220),y:14500}:params.get('start')==='fisherman'?{x:FISHERMAN.x-70,y:FISHERMAN.y+70}:requestedMountain?{x:requestedMountain.x,y:params.get('start').endsWith('-summit')?requestedMountain.y+650:requestedMountain.y+requestedMountain.ry+210}:null;
-const requestedLounge=TOWN_BUILDINGS.find(b=>b.type==='brothel'&&b.layer===startLayer&&params.get('start')===b.id+'-lounge');
+const requestedLounge=TOWN_BUILDINGS.find(b=>b.layer===startLayer&&((b.type==='brothel'&&params.get('start')===b.id+'-lounge')||(b.type==='smoke'&&params.get('start')===b.id+'-counter')));
 const initial=(requestedLounge?{x:550,y:445}:null)||frontierStart||startPortal?.[startLayer]||(startLayer==='surface'&&startLake?{x:startLake.x+startLake.rx+85,y:startLake.y}:null)||startBridge||(startLayer==='surface'?randomSurfaceSpawn():null)||LAYERS[startLayer]?.spawn||(startLayer==='deep'?DEEP_CAVES.spawn:startLayer==='cave'?{x:3950,y:2700}:SURFACE.spawn);
 const player={x:initial.x,y:initial.y,facing:Math.PI*1.5,moving:false,jumpHeight:0,jumpActive:false};
 player.layer=startLayer;if(startLayer==='surface'&&!startPortal&&!startLake)populateSpawnSupplies(spawnables,player);
@@ -77,7 +80,7 @@ let pointerInventoryDrag=null;
 const keys=new Set();
 const mouse={x:renderer.width/2,y:renderer.height/2};
 const casinoUI=new CasinoUI({inventory,openModal:()=>setModal('casinoModal',true),onInteraction:detail=>worldBridge.publishInteraction({...detail,x:player.x,y:player.y,layer})});
-const townUI=new TownUI({inventory,vitals,npcs,openModal:()=>setModal('townModal',true),onChange:detail=>{renderInventory();renderCrafting();renderHotbar();updateHud();worldBridge.publishInteraction({...detail,x:player.x,y:player.y,layer});}});
+const townUI=new TownUI({inventory,vitals,npcs,openModal:()=>setModal('townModal',true),onEquip:()=>{equipVape();setModal('townModal',false);showToast('Prism Vape equipped · F or click to take a hit',5000);},onChange:detail=>{renderInventory();renderCrafting();renderHotbar();updateHud();worldBridge.publishInteraction({...detail,x:player.x,y:player.y,layer});}});
 const frontierUI=new FrontierUI({inventory,quests,npcs,player,diving,buffs,openModal:id=>setModal(id,true),onChange:()=>{renderInventory();renderCrafting();renderHotbar();updateHud();},toast:showToast});
 function interiorActivity(){return buildingForLayer(layer)?.type!=='casino'&&buildingForLayer(layer)&&Math.hypot(player.x-INTERIOR_ACTIVITY.x,player.y-INTERIOR_ACTIVITY.y)<180;}
 
@@ -255,7 +258,7 @@ function placeFrontier(point,kind){
 function toggleDive(){
  if(layer!=='ocean'&&!diving.canDive(player)){showToast('Enter ocean water, then press V to dive');return;}
  if(layer==='ocean')diving.surfaced();else diving.surfaceLock=false;
- layer=layer==='ocean'?'surface':'ocean';player.layer=layer;player.underwater=layer==='ocean';player.vehicle=null;player.grappleTarget=null;player.jumpActive=false;player.jumpHeight=0;fishing.cancel();projectiles.clear();oceanInk.clear(player);camera.y=player.y;worldBridge.publishPosition({x:player.x,y:player.y,layer,facing:player.facing});worldBridge.publishInteraction({kind:layer==='ocean'?'dive':'surface',x:player.x,y:player.y,layer});showToast(layer==='ocean'?'Ocean floor · Surface button or V to ascend':'Surfaced · swim WEST to shore · V to dive again',4500);updateHud();drawFullMap();
+ layer=layer==='ocean'?'surface':'ocean';player.layer=layer;player.underwater=layer==='ocean';player.vehicle=null;player.grappleTarget=null;player.jumpActive=false;player.jumpHeight=0;fishing.cancel();projectiles.clear();oceanInk.clear(player);vape.clear(player);camera.y=player.y;worldBridge.publishPosition({x:player.x,y:player.y,layer,facing:player.facing});worldBridge.publishInteraction({kind:layer==='ocean'?'dive':'surface',x:player.x,y:player.y,layer});showToast(layer==='ocean'?'Ocean floor · Surface button or V to ascend':'Surfaced · swim WEST to shore · V to dive again',4500);updateHud();drawFullMap();
 }
 $('surfaceButton').addEventListener('click',()=>{if(layer==='ocean'){document.querySelectorAll('.modal').forEach(m=>m.classList.add('hidden'));toggleDive();}});
 function interact(){
@@ -279,10 +282,24 @@ function transition(){
   const from=layer;
   fishing.cancel();
   layer=portalDestination(p,layer);
-  projectiles.clear();oceanInk.clear(player);
+  projectiles.clear();oceanInk.clear(player);vape.clear(player);
   player.layer=layer;player.swimming=false;player.jumpActive=false;player.jumpHeight=0;const dest=p[layer];player.x=dest.x;player.y=dest.y;camera.x=player.x+camera.lookX;camera.y=player.y+camera.lookY;
   lastTransition=performance.now();selectedZone=null;refreshZonePanel();drawFullMap();renderer.drawOverview($('minimap'),layer,player,zones,showZones);
   worldBridge.publishInteraction({kind:buildingForLayer(layer)?'enter-building':buildingForLayer(from)?'exit-building':from==='surface'?'enter-cave':layer==='surface'?'exit-cave':Object.keys(LAYERS).indexOf(layer)>Object.keys(LAYERS).indexOf(from)?'descend-cave':'ascend-cave',targetId:p.id,x:player.x,y:player.y,layer});
+}
+function equipVape(){if(!inventory.owned.has(VAPE_ID))return;const slot=hotbar.assign('equipment',VAPE_ID);selectHotbar(slot);}
+function hitVape(){
+ if(modalOpen())return;const result=vape.hit(inventory,player,performance.now());
+ if(!result.ok){if(!result.cooldown)showToast(result.message);return;}
+ renderInventory();renderHotbar();updateHud();worldBridge.publishInteraction({kind:'vape',flavor:result.flavor,hits:result.hits,x:player.x,y:player.y,layer});
+}
+activate($('vapeHit'),hitVape);
+function renderVapeHud(now){
+ const held=inventory.equippedTool?.id===VAPE_ID,f=vapeFlavor(inventory.vape.flavor);$('vapeHud').classList.toggle('hidden',!held||modalOpen());
+ const status=`${f.name} · ${inventory.vape.charges[f.id]} puffs`;if($('vapeStatus').textContent!==status)$('vapeStatus').textContent=status;$('vapeStatus').style.color=f.color;$('vapeHit').disabled=now<vape.nextHitAt||player.swimming||player.underwater;
+ const thought=vape.thought,el=$('vapeThought');el.classList.toggle('hidden',!thought||modalOpen());if(!thought)return;
+ if(el.textContent!==thought.text)el.textContent=thought.text;el.style.setProperty('--flavor',thought.color);
+ const pt=worldToScreen(player.x,player.y-135-(layer==='surface'?elevationOffset(player.x,player.y):0),camera,zoom,renderer.width,renderer.height);el.style.left=`${Math.max(145,Math.min(renderer.width-145,pt.x))}px`;el.style.top=`${Math.max(100,pt.y)}px`;
 }
 function handleKey(event,down){
   if(event.target instanceof HTMLInputElement||event.target instanceof HTMLSelectElement)return;
@@ -295,6 +312,7 @@ function handleKey(event,down){
     if(key==='e'&&!modalOpen())interact();
     if(key===' '&&!event.repeat&&!modalOpen())startJump(player);
     if(key==='h'&&!modalOpen())eatMeat();
+    if(key==='f'&&!event.repeat&&!modalOpen()&&inventory.equippedTool?.id===VAPE_ID)hitVape();
     if(key==='v'&&!modalOpen())toggleDive();
     if(key==='j'){if(!$('questModal').classList.contains('hidden'))setModal('questModal',false);else frontierUI.showJournal();}
     if(key==='r'&&!modalOpen()){structureRotation=structureRotation?0:Math.PI/2;showToast('Building orientation: '+(structureRotation?'vertical':'horizontal'));}
@@ -353,7 +371,7 @@ function renderInventory(){
   for(const resource of visibleResources(inventory).filter(r=>!['leaves','sticks','wood','stone','iron','meat','hide','bone'].includes(r))){const chip=document.createElement('span');chip.textContent=`${resourceName(resource)} ${inventory.resources[resource]}`;extras.append(chip);}
   extras.classList.toggle('hidden',extras.childElementCount===0);
   $('pouchEmpty').classList.toggle('hidden',visibleResources(inventory).length>0);
-  $('equippedTool').textContent=inventory.equippedTool?`${itemName(inventory.equippedTool.id)} · ${scaledWeaponDamage(inventory.equippedTool,effect.stats.power)} dmg`:'Bare hands · 1 dmg';
+  $('equippedTool').textContent=inventory.equippedTool?.id===VAPE_ID?`Prism Vape · ${vapeFlavor(inventory.vape.flavor).name} · ${inventory.vape.charges[inventory.vape.flavor]} puffs`:inventory.equippedTool?`${itemName(inventory.equippedTool.id)} · ${scaledWeaponDamage(inventory.equippedTool,effect.stats.power)} dmg`:'Bare hands · 1 dmg';
   $('equippedGear').textContent=inventory.equippedGear?`${itemName(inventory.equippedGear.id)} · ${armorReduction(inventory.equippedGear,effect.stats.defense)} block`:'None';
   $('bagResources').replaceChildren();
   for(const resource of visibleResources(inventory)){
@@ -382,13 +400,16 @@ function renderInventory(){
     if(recipe.category==='gear'){
       button.textContent=equipped?'Unequip':'Equip';
       activate(button,()=>{if(equipped)inventory.unequip(id);else inventory.equip(id);currentEffects();renderInventory();renderCrafting();updateHud();});
+    }else if(item.type==='vape'){
+      button.textContent='Equip';activate(button,equipVape);inventoryDragSource(card,{kind:'equipment',id});
     }else{
       button.textContent='Select';
       const slot={kind:'equipment',id};inventoryDragSource(card,slot);
       activate(button,()=>chooseInventoryItem(slot));
       if(selectedInventoryItem?.kind===slot.kind&&selectedInventoryItem.id===id)card.classList.add('inventory-picked');
     }
-    info.append(title,detail);card.append(itemImage(recipe),info,button);
+    info.append(title,detail);
+    if(item.type==='vape'){detail.textContent=`${vapeFlavor(inventory.vape.flavor).name} · ${inventory.vape.charges[inventory.vape.flavor]} puffs · F or click to take a hit`;const select=document.createElement('select');select.className='vape-load';select.setAttribute('aria-label','Vape flavor');for(const f of VAPE_FLAVORS){const option=document.createElement('option');option.value=f.id;option.textContent=`${f.name} · ${inventory.vape.charges[f.id]} puffs`;option.disabled=!inventory.vape.charges[f.id];select.append(option);}select.value=inventory.vape.flavor;select.addEventListener('change',()=>{loadFlavor(inventory,select.value);renderInventory();});info.append(select);}card.append(itemImage(recipe),info,button);
     if(recipe.category==='gear'){armor.append(card);armorCount++;}else{weapons.append(card);weaponCount++;}
   }
   $('weaponsEmpty').classList.toggle('hidden',weaponCount>0);$('armorEmpty').classList.toggle('hidden',armorCount>0);
@@ -402,7 +423,7 @@ function renderCrafting(){
   const list=$('recipeList');list.replaceChildren();
   for(const [category,heading] of [['tool','Weapons & Tools'],['gear','Armor'],['transport','Transportation'],['technical','Technical Tools'],['structure','Structures']]){
   const section=document.createElement('section'),titleSection=document.createElement('h3'),grid=document.createElement('div');section.className='craft-section';titleSection.textContent=heading;grid.className='recipe-list';section.append(titleSection,grid);list.append(section);
-  for(const recipe of RECIPES.filter(r=>category==='transport'?r.type==='transport':category==='technical'?r.type==='grapple'||r.id==='powered-drill':r.category===category&&!(category==='tool'&&(r.type==='transport'||r.type==='grapple'||r.id==='powered-drill')))){
+  for(const recipe of RECIPES.filter(r=>!r.shopOnly).filter(r=>category==='transport'?r.type==='transport':category==='technical'?r.type==='grapple'||r.id==='powered-drill':r.category===category&&!(category==='tool'&&(r.type==='transport'||r.type==='grapple'||r.id==='powered-drill')))){
     const card=document.createElement('div');card.className='recipe-card';
     const owned=inventory.owned.has(recipe.id),equipped=inventory.equippedTool?.id===recipe.id||inventory.equippedGear?.id===recipe.id;
     if(owned)card.classList.add('owned');if(equipped)card.classList.add('equipped');
@@ -483,6 +504,7 @@ canvas.addEventListener('pointerdown',event=>{
   if(modalOpen())return;
   if(!showZones){if(event.button===0){const p=mouseWorld(event);const aimFacing=Math.atan2(p.y-player.y,p.x-player.x);
     const building=buildingForLayer(layer);
+    if(inventory.equippedTool?.id===VAPE_ID){hitVape();return;}
     if(building){if(nearestPortal(p.x,p.y,layer)&&nearestPortal(player.x,player.y,layer))transition();else if(building.type==='casino'){const activity=casinoActivityAt(p.x,p.y,200);if(activity&&Math.hypot(player.x-activity.activity.x,player.y-activity.activity.y)<180)casinoUI.open(activity.id,building.name);else showToast('Walk up to a slot machine or the blackjack table');}else if(interiorActivity()&&Math.hypot(p.x-550,p.y-225)<240)townUI.open(building);else showToast('Walk up to the counter or supply chest');return;}
     if(['bow','slingshot'].includes(inventory.equippedTool?.type)){shoot(p);return;}
     if(inventory.equippedTool?.type==='grapple'){if(Math.hypot(p.x-player.x,p.y-player.y)>450){showToast('Grapple range: 450 units');return;}for(let t=0;t<=1;t+=.04)if(!canWalk(player.x+(p.x-player.x)*t,player.y+(p.y-player.y)*t,layer,PLAYER_RADIUS,true)||structures.blocks(player.x+(p.x-player.x)*t,player.y+(p.y-player.y)*t,layer)){showToast('The rope needs a clear route');return;}player.grappleTarget=p;return;}
@@ -541,6 +563,7 @@ function update(dt,now){
     }
   }else player.moving=false;
   updateGliding(player,dt);
+  vape.update(now,player,inventory,layer==='surface'?elevationOffset(player.x,player.y):0);
   structures.update(dt);npcs.update(dt,now,player);frontierNodes.update(now);
   if(now-lastHud>170)frontierUI.update(now);
   if(!$('townModal').classList.contains('hidden')&&townUI.building?.type==='house'&&now-lastHud>170)townUI.render();
@@ -549,7 +572,7 @@ function update(dt,now){
     const hurt=(damage,source)=>{
       const result=vitals.takeDamage(damage,source==='Drowning'?null:inventory.equippedGear,now,source==='Drowning'?1:currentEffects().stats.defense);
       if(result.damage){showToast(`${source} hit you · −${result.damage} health`,900);updateHud();}
-      if(result.dead){vitals.respawn(now);diving.reset();player.grappleTarget=null;fishing.cancel();layer='surface';player.layer=layer;player.swimming=false;player.jumpActive=false;player.jumpHeight=0;Object.assign(player,randomSurfaceSpawn());camera.lookX=0;camera.lookY=0;camera.x=player.x;camera.y=player.y;projectiles.clear();oceanInk.clear(player);showToast('You fell in the caves and returned to a safe town outskirts',3500);worldBridge.publishInteraction({kind:'respawn',x:player.x,y:player.y,layer});}
+      if(result.dead){vitals.respawn(now);diving.reset();player.grappleTarget=null;fishing.cancel();layer='surface';player.layer=layer;player.swimming=false;player.jumpActive=false;player.jumpHeight=0;Object.assign(player,randomSurfaceSpawn());camera.lookX=0;camera.lookY=0;camera.x=player.x;camera.y=player.y;projectiles.clear();oceanInk.clear(player);vape.clear(player);showToast('You fell in the caves and returned to a safe town outskirts',3500);worldBridge.publishInteraction({kind:'respawn',x:player.x,y:player.y,layer});}
       return result.dead;
     };
     const drowning=diving.update(dt,player,inventory);if(diving.wetTime>4)toggleDive();
@@ -620,7 +643,8 @@ let frameWork=0;
 function frame(now){
   const workStart=performance.now();
   const dt=Math.max(0,Math.min(.05,(now-lastFrame)/1000));lastFrame=now;
-  update(dt,now);renderer.render({camera,zoom,player,layer,zones,showZones,selectedZone,editZones:devMode,spawnables,structures,creatures,drops,projectiles,oceanInk,fishing,targetNode,targetDrop,inventory,time:now,frontier:{npcs,nodes:frontierNodes,quests}});
+  update(dt,now);renderer.render({camera,zoom,player,layer,zones,showZones,selectedZone,editZones:devMode,spawnables,structures,creatures,drops,projectiles,oceanInk,vape,fishing,targetNode,targetDrop,inventory,time:now,frontier:{npcs,nodes:frontierNodes,quests}});
+  renderVapeHud(now);
   frameWork+=performance.now()-workStart;fpsFrames++;
   if(now-fpsStart>=1000){$('perfStats').textContent=`${Math.round(fpsFrames*1000/(now-fpsStart))} FPS · ${(frameWork/fpsFrames).toFixed(1)} ms/frame · ${layer} · ${zoom.toFixed(2)}× zoom · terrain ${renderer.art.worker?'worker':'fallback'}`;fpsFrames=0;frameWork=0;fpsStart=now;}
   requestAnimationFrame(frame);
@@ -630,6 +654,7 @@ function refreshBeta(){renderBeta();renderInventory();renderCrafting();renderHot
 for(const amount of [1,5])activate($(amount===1?'betaLevelOne':'betaLevelFive'),()=>{inventory.progression.upgrade(amount);$('betaFeedback').textContent=`Upgraded to level ${inventory.progression.level}`;refreshBeta();});
 for(const [label,items] of [['Resources',RESOURCES.map(id=>({id,name:resourceName(id)}))],['Equipment & structures',RECIPES]]){const group=document.createElement('optgroup');group.label=label;for(const item of items){const option=document.createElement('option');option.value=item.id;option.textContent=item.name;group.append(option);}$('betaItem').append(group);}
 activate($('betaGive'),()=>{grantBetaItem(inventory,$('betaItem').value,$('betaQuantity').value);$('betaFeedback').textContent=`Added ${$('betaItem').selectedOptions[0].textContent}`;refreshBeta();});
+activate($('betaCoins'),()=>{inventory.coins+=100;$('betaFeedback').textContent='Added 100 coins';refreshBeta();});
 activate($('betaSupplies'),()=>{for(const id of RESOURCES)inventory.add(id,50);$('betaFeedback').textContent='Added 50 of every resource';refreshBeta();});
 
 renderInventory();renderCrafting();renderHotbar();updateHud();renderer.drawOverview($('minimap'),layer,player,zones,showZones);requestAnimationFrame(frame);

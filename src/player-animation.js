@@ -40,6 +40,7 @@ export function playerArmPose(player,time,type=null,fishing=null){
       if(side){hand.x=x+4+attack*2;hand.y=42+stride*.45-attack*4;elbow={x:x+1.5,y:37.5};}
       hand.x+=(side?1:2)+attack*(type==='rock'?6:2);
       if(type==='rod'&&fishing?.active)hand.y+=Math.sin(time*.008)*.4;
+      if(type==='vape'){const inhale=(player.vapeUntil||0)>time;hand.x=inhale?(side?33:27):x+3;hand.y=inhale?42:51;elbow={x:x+3,y:40};}
     }
     return {shoulder:{x,y:31},elbow,hand,far:side&&index===(flip?1:0)};
   });
@@ -48,13 +49,13 @@ export function playerArmPose(player,time,type=null,fishing=null){
 
 export function heldToolPose(player,time,type,fishing=null,pose=playerArmPose(player,time,type,fishing)){
   const hand=pose.arms[pose.heldArm].hand;
-  const size=type==='rock'?31:43;
-  const grip=['bow','slingshot'].includes(type)?{x:.48,y:.66}:type==='rod'?{x:27/96,y:81/96}:type==='rock'?{x:.5,y:.6}:{x:35/96,y:78/96};
+  const size=type==='rock'||type==='vape'?31:43;
+  const grip=type==='vape'?{x:44/96,y:64/96}:['bow','slingshot'].includes(type)?{x:.48,y:.66}:type==='rod'?{x:27/96,y:81/96}:type==='rock'?{x:.5,y:.6}:{x:35/96,y:78/96};
   // Convert the chosen hand into the held item's mirrored coordinate system.
   const x=(pose.flip?-1:1)*(pose.heldFlip?-1:1)*(hand.x-22);
   const y=hand.y-61;
   const carryAngle=pose.side?-.08:pose.back?-.55:.55;
-  const angle=pose.attacking?carryAngle+(pose.back?-1:1)*swingAngle(pose.progress,type):carryAngle+pose.stride*.065+(type==='rod'&&fishing?.active?Math.sin(time*.006)*.025:Math.sin(time*.002)*.012);
+  const angle=type==='vape'?((player.vapeUntil||0)>time?0:.16):pose.attacking?carryAngle+(pose.back?-1:1)*swingAngle(pose.progress,type):carryAngle+pose.stride*.065+(type==='rod'&&fishing?.active?Math.sin(time*.006)*.025:Math.sin(time*.002)*.012);
   return {x,y,angle,size,grip,flip:pose.heldFlip,scale:1.65};
 }
 

@@ -5,6 +5,10 @@ export function townObjects(ctx,art,building,time){
    block(380,178,340,87,'#604638');block(390,165,320,76,'#bd8b51');block(390,180,320,8,'#e7bd78');block(545,197,18,29,'#efca78');block(548,210,12,5,'#6c5842');
    block(130,370,180,200,'#75513b');block(143,381,154,177,'#627c8c');block(150,383,139,45,'#eddfb6');block(145,431,150,112,'#8caebb');block(145,435,150,8,'#adc7c6');
    block(775,450,150,100,'#c29662');block(782,458,136,9,'#e4bd7e');block(810,471,22,31,'#f2dec0');block(840,477,25,25,'#789083');
+  }else if(building.type==='smoke'){
+   block(380,175,340,100,'#423951');block(373,166,354,19,'#8fd9cf');block(380,190,340,8,'#9f78c8');
+   for(const x of [150,845]){block(x,170,105,195,'#433b56');for(let y=184;y<350;y+=50){block(x+4,y,96,8,'#aa8abf');for(let i=0;i<3;i++){const color=['#c69bff','#83efd4','#ffb47f'][(i+y)%3];block(x+12+i*28,y-22,15,22,color);block(x+16+i*28,y-29,7,7,'#242b36');block(x+13+i*28,y-20,3,18,'#ffffff77');}}}
+   for(let i=0;i<5;i++){const x=411+i*48;block(x,209,23,32,['#c69bff','#83efd4','#ffb47f','#ff8fba','#ffe681'][i]);block(x+5,190,13,19,'#bdcbd3');block(x+7,185,9,5,'#242b36');block(x+3,215,6,21,'#3b3d47');}
   }else if(building.type==='brothel'){
    block(380,178,340,100,'#533b49');block(372,168,356,18,'#cda47a');block(380,191,340,8,'#99646d');
    for(const x of [110,740]){block(x,445,220,115,'#593f4f');block(x+8,442,204,36,'#bf7b8d');block(x+12,476,196,62,'#a65775');block(x+18,484,184,6,'#d993a0');block(x,462,17,80,'#d393a1');block(x+203,462,17,80,'#d393a1');block(x+18,548,14,17,'#654b42');block(x+186,548,14,17,'#654b42');}

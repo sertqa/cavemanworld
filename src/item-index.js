@@ -36,6 +36,6 @@ for(const m of MATERIALS)RESOURCE_DETAILS[m.id]=[m.name,`Depth ${m.depth} · ${m
 export function visibleResources(inventory){return RESOURCES.filter(id=>(inventory.resources[id]||0)>0);}
 export function indexEntries(inventory){
   const resources=RESOURCES.map(id=>{const [name,source,detail,symbol]=RESOURCE_DETAILS[id];return {id,name,kind:'resource',group:'Resources',source,detail,symbol,count:inventory.resources[id]||0};});
-  const crafted=RECIPES.map(recipe=>({id:recipe.id,name:recipe.name,kind:recipe.category,group:recipe.category==='tool'?'Weapons & Tools':recipe.category==='gear'?'Armor':'Structures',source:recipe.category==='structure'?'Crafting menu':`Crafting menu · ${recipe.tier} tier`,detail:recipe.detail,symbol:null,count:recipe.category==='structure'?(inventory.structures[recipe.id]||0):Number(inventory.owned.has(recipe.id)),recipe}));
+  const crafted=RECIPES.map(recipe=>({id:recipe.id,name:recipe.name,kind:recipe.category,group:recipe.category==='tool'?'Weapons & Tools':recipe.category==='gear'?'Armor':'Structures',source:recipe.shopOnly?'Village smoke shop':recipe.category==='structure'?'Crafting menu':`Crafting menu · ${recipe.tier} tier`,detail:recipe.detail,symbol:null,count:recipe.category==='structure'?(inventory.structures[recipe.id]||0):Number(inventory.owned.has(recipe.id)),recipe}));
   return [...resources,...crafted];
 }

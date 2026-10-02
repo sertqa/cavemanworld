@@ -7,7 +7,7 @@ export function drawCasinoBuilding(ctx,art,building=CASINO_BUILDING){
     block(c,23,72,174,86,'#735a48');block(c,27,78,166,76,'#c4a774');
     for(let x=32;x<190;x+=19){block(c,x,80,5,73,'#8b6948');block(c,x,81,2,64,'#e7c58b');}
     const variant=[...building.id].reduce((n,c)=>n+c.charCodeAt(0),0)%3;
-    const roof=({shop:['#527e77','#78a092'],smith:['#586676','#8c9b9d'],house:['#927147','#c0a06b'],casino:['#ac7753','#cb955e'],brothel:['#78465f','#b47a85']})[building.type];
+    const roof=({shop:['#527e77','#78a092'],smith:['#586676','#8c9b9d'],house:['#927147','#c0a06b'],casino:['#ac7753','#cb955e'],smoke:['#68458c','#a487c4'],brothel:['#78465f','#b47a85']})[building.type];
     if(building.biome==='tundra'){roof[0]='#83a4a8';roof[1]='#beded3';}
     if(building.biome==='marsh'&&building.type==='house'){roof[0]='#6c8a72';roof[1]='#a4ad77';}
     if(building.type==='brothel'){
@@ -23,6 +23,11 @@ export function drawCasinoBuilding(ctx,art,building=CASINO_BUILDING){
       block(c,35,111,31,27,'#3c635a');block(c,38,114,25,20,'#e5bb79');block(c,49,113,3,23,'#79593e');
       block(c,155,107,28,29,'#3c635a');block(c,158,110,22,22,'#e5bb79');block(c,168,110,2,24,'#79593e');
       block(c,35,140,34,8,'#826447');block(c,39,138,6,5,'#78ad6d');block(c,55,137,6,5,'#da958b');
+    }else if(building.type==='smoke'){
+      for(let y=24;y<73;y+=3){const w=40+(y-24)*1.1;block(c,110-w,y,w*2,3,roof[y%2]);}
+      block(c,22,96,176,12,'#88d8cc');
+      for(const x of [35,148]){block(c,x,115,37,33,'#303853');block(c,x+4,119,29,25,'#7563a1');block(c,x+10,127,10,13,'#75e8cd');block(c,x+12,120,6,8,'#d8b8ff');block(c,x+12,117,6,3,'#292c3a');}
+      for(const [x,y,w] of [[96,42,20],[108,36,19],[119,45,17]])block(c,x,y,w,9,'#c6acdc');
     }else if(building.type==='shop'){
       for(let y=24;y<69;y+=3){const w=70+(y-24)*.5;block(c,110-w,y,w*2,3,roof[y%2]);}
       block(c,15,96,190,18,'#d8c293');for(let x=15;x<205;x+=24)block(c,x,96,12,18,'#6d9c91');
@@ -54,7 +59,7 @@ export function drawCasinoFloor(ctx,art,building=CASINO_BUILDING){
     for(let y=70;y<800;y+=24)for(let x=70;x<1030;x+=64){block(c,x,y,63,23,(Math.floor(x/64)+Math.floor(y/24))%3?'#b19468':'#bba173');block(c,x+5,y+4,37,1,'#d1b38355');}
     block(c,60,40,980,55,'#5c6954');block(c,68,46,964,7,'#adc09a');block(c,68,89,964,6,'#394d45');
     if(building.type==='smith'){for(let y=95;y<715;y+=40)for(let x=75;x<1020;x+=48)block(c,x,y,46,38,(x+y)%3?'#859390':'#9eaa9d');}
-    const rug=({house:['#557b65','#86a27d'],shop:['#9d7b48','#c6a164'],smith:['#536d74','#819294'],casino:['#864e54','#b16b66'],brothel:['#6c375a','#a86179']})[building.type];
+    const rug=({house:['#557b65','#86a27d'],shop:['#9d7b48','#c6a164'],smith:['#536d74','#819294'],casino:['#864e54','#b16b66'],smoke:['#493b70','#90d9cc'],brothel:['#6c375a','#a86179']})[building.type];
     block(c,477,92,148,540,rug[0]);block(c,486,96,130,530,rug[1]);
     for(let y=105;y<620;y+=40){block(c,488,y,3,19,'#e6bd84');block(c,611,y,3,19,'#e6bd84');}
     if(building.type==='brothel'){

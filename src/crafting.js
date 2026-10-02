@@ -1,3 +1,4 @@
+import {VAPE_RECIPE,VAPE_FLAVORS} from './vape-data.js';
 import {FISH_SPECIES} from './fish-species.js';
 import {FRONTIER_RECIPES,FRONTIER_RESOURCES} from './frontier-items.js';
 import { MATERIALS } from './materials.js';
@@ -67,9 +68,11 @@ for(const r of RECIPES){r.level??=r.tier==='iron'?3:1;if(r.category==='gear'&&!M
 for(const m of MATERIALS.filter(m=>m.depth>=2))for(const [type,multiplier,amount,range,cooldown,knockback] of [['sword',1.35,10,145,330,15],['spear',1.05,8,220,530,30],['warhammer',1.6,12,110,800,110]]){
  RECIPES.push({id:`${m.id}-${type}`,name:`${m.name} ${type[0].toUpperCase()+type.slice(1)}`,category:'tool',type,tier:m.id,damage:Math.ceil((m.damage+2)*multiplier),level:m.level,cost:{[m.id]:amount,wood:3,hide:2},range,cooldown,knockback,detail:type==='sword'?'Faster swings and more damage than a club; costs more ore.':type==='spear'?'Long reach with moderate damage and knockback.':'Heavy damage and strong knockback; slow swings.'});
 }
+RECIPES.push(VAPE_RECIPE);
 export class Inventory {
   constructor({level=1}={}) {
     this.coins=0;
+    this.vape={flavor:'berry',charges:Object.fromEntries(VAPE_FLAVORS.map(f=>[f.id,0]))};
     this.progression=new Progression(level);
     this.resources = Object.fromEntries(RESOURCES.map(resource=>[resource,0]));
     this.owned = new Map();
@@ -83,11 +86,12 @@ export class Inventory {
   }
   consume(resource,amount){if(!RESOURCES.includes(resource)||!Number.isFinite(amount)||amount<=0||this.resources[resource]<amount)return false;this.resources[resource]-=amount;return true;}
   canCraft(recipe) {
-    return !recipe.questOnly && this.progression.level>=(recipe.level||1) && (recipe.category==='structure'||!this.owned.has(recipe.id)) && (!recipe.requires || this.owned.has(recipe.requires)) && Object.entries(recipe.cost).every(([resource, amount]) => this.resources[resource] >= amount);
+    return !recipe.shopOnly && !recipe.questOnly && this.progression.level>=(recipe.level||1) && (recipe.category==='structure'||!this.owned.has(recipe.id)) && (!recipe.requires || this.owned.has(recipe.requires)) && Object.entries(recipe.cost).every(([resource, amount]) => this.resources[resource] >= amount);
   }
   craft(recipeId) {
     const recipe = RECIPES.find(r => r.id === recipeId);
     if (!recipe) return { ok:false, message:'Unknown recipe' };
+    if(recipe.shopOnly)return {ok:false,message:'Buy this at a village smoke shop.'};
     if(recipe.questOnly)return {ok:false,message:'Complete the fisherman’s ten quests to earn this armor.'};
     if(this.progression.level<(recipe.level||1))return {ok:false,message:`Requires level ${recipe.level}`};
     if (recipe.category!=='structure'&&this.owned.has(recipe.id)) return { ok:false, message:'Already crafted' };

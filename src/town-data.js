@@ -11,6 +11,7 @@ for(const t of TOWNS){
   const id=`${t.id}-${type}${type==='house'?(dx<0?'-west':'-east'):''}`;
   TOWN_BUILDINGS.push({id,town:t.id,name:`${t.name} ${suffix}`,sign,type,layer:id,x:t.x+dx,y:t.y+dy,width:360,height:180,biome:t.biome});
  }
+ TOWN_BUILDINGS.push({id:`${t.id}-smoke`,town:t.id,name:`${t.name} Prism Smoke Shop`,sign:'PRISM SMOKE',type:'smoke',layer:`${t.id}-smoke`,x:t.x+1550,y:t.y+600,width:360,height:180,biome:t.biome});
  TOWN_BUILDINGS.push({id:`${t.id}-brothel`,town:t.id,name:BROTHEL_NAMES[t.id],sign:({hearth:'VELVET HEARTH',fern:'FERN & LACE',lotus:'LOTUS LANTERN',aurora:'AURORA ROSE'})[t.id],type:'brothel',layer:`${t.id}-brothel`,x:t.x,y:t.y-({fern:1500,aurora:850}[t.id]||1150),width:360,height:180,biome:t.biome});
  if(t.casino&&t.id!=='hearth')TOWN_BUILDINGS.push({id:`${t.id}-casino`,town:t.id,name:`${t.name} Casino`,sign:'FERN FORTUNE',type:'casino',layer:`${t.id}-casino`,x:t.x-1300,y:t.y-50,width:360,height:180,biome:t.biome});
 }

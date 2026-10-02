@@ -19,7 +19,7 @@ export function clubQuality(club){
 export function upgradeCost(item){return {coins:20*((item?.upgradeLevel||0)+1),resource:['leaf','wood'].includes(item?.tier)?'wood':item?.tier,amount:2+(item?.upgradeLevel||0)};}
 export function upgradeTool(inventory,id,rng=Math.random){
  const item=inventory.owned.get(id),recipe=RECIPES.find(r=>r.id===id);
- if(!item||recipe?.category!=='tool')return {ok:false,message:'Choose a crafted tool.'};
+ if(!item||recipe?.category!=='tool'||recipe.shopOnly)return {ok:false,message:'Choose a crafted tool.'};
  if(inventory.equippedTool?.type!=='club')return {ok:false,message:'Equip a club from your hotbar before using the forge.'};
  if((item.upgradeLevel||0)>=3)return {ok:false,message:'This tool already has three upgrades.'};
  const cost=upgradeCost(item);if(inventory.coins<cost.coins||inventory.resources[cost.resource]<cost.amount)return {ok:false,message:'Gather the coins and material shown.'};
