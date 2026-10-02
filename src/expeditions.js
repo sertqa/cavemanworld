@@ -1,3 +1,4 @@
+import {vipResidents} from './vip-island.js';
 import {brothelResidents} from './brothels.js';
 import {TOWN_BUILDINGS} from './town-data.js';
 import {MOUNTAINS,FISHERMAN,coastline,mountainAt} from './frontier-world.js';
@@ -40,7 +41,7 @@ export const NPC_APPEARANCES=[
  appearance('iris','#a77059','#ae9c82','#b66c69',{longHair:true}),
 ];
 export class NpcRegistry{
- constructor(){this.items=[{...FISHERMAN,appearance:NPC_APPEARANCES[0],facing:Math.PI/2,moving:false}];
+ constructor(){this.items=[{...FISHERMAN,appearance:NPC_APPEARANCES[0],facing:Math.PI/2,moving:false},...vipResidents()];
   for(const b of TOWN_BUILDINGS.filter(b=>b.type==='brothel'))this.items.push(...brothelResidents(b));
   const woods=BIOMES.filter(b=>b.id==='woodland');
   for(let i=0;i<woods.length;i++){const b=woods[i],x=b.center[0]+700,y=b.center[1]+450;if(canWalk(x,y,'surface',60)&&!mountainAt(x,y))this.items.push({id:'woods-'+i,name:['Nala','Toma','Rin','Keva','Iris'][i%5]+' the Wayfarer',x,y,homeX:x,homeY:y,layer:'surface',role:'woods',appearance:NPC_APPEARANCES[1+i%6],facing:0});}
@@ -65,7 +66,7 @@ export const FISHERMAN_QUESTS=[
 function grantItem(inv,id){const r=RECIPES.find(r=>r.id===id);if(!r||inv.owned.has(id))return;if(r.category==='structure')inv.structures[id]=(inv.structures[id]||0)+1;else inv.owned.set(id,r.category==='gear'?new Gear(r):new Tool(r));}
 export class QuestBook{
  constructor(){this.fisherman=0;this.steps={};this.proof={treasures:0,deepTreasures:0,reefCrab:0,seaPredators:0,mountainBoss:0};this.claimedChests=new Set();this.active=new Set(['fisherman']);}
- task(npc){if(npc.role==='brothel')return null;if(npc.role==='fisherman')return FISHERMAN_QUESTS[this.fisherman]||null;
+ task(npc){if(['brothel','vip'].includes(npc.role))return null;if(npc.role==='fisherman')return FISHERMAN_QUESTS[this.fisherman]||null;
   const step=(this.steps[npc.id]||0)%3;
   if(npc.role==='woods')return [
    {name:'Trail Supplies',resources:{leaves:12,wood:6},coins:50,xp:50,hint:'Every traveler needs dry fuel and a little shelter.'},

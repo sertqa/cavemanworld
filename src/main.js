@@ -1,3 +1,4 @@
+import {VIP_ISLAND} from './vip-island.js';
 import {VapeSession,loadFlavor} from './vaping.js';
 import {VAPE_ID,VAPE_FLAVORS,vapeFlavor} from './vape-data.js';
 import {worldToScreen} from './camera.js';
@@ -63,7 +64,8 @@ const startBridge=startLayer==='surface'&&params.get('start')==='mire-crossing'?
 const requestedMountain=MOUNTAINS.find(m=>params.get('start')===m.id||params.get('start')===m.id+'-summit');
 const frontierStart=startLayer==='ocean'?{x:coastline(14500)+(params.get('start')==='deep-ocean'?1800:220),y:14500}:params.get('start')==='fisherman'?{x:FISHERMAN.x-70,y:FISHERMAN.y+70}:requestedMountain?{x:requestedMountain.x,y:params.get('start').endsWith('-summit')?requestedMountain.y+650:requestedMountain.y+requestedMountain.ry+210}:null;
 const requestedLounge=TOWN_BUILDINGS.find(b=>b.layer===startLayer&&((b.type==='brothel'&&params.get('start')===b.id+'-lounge')||(b.type==='smoke'&&params.get('start')===b.id+'-counter')));
-const initial=(requestedLounge?{x:550,y:445}:null)||frontierStart||startPortal?.[startLayer]||(startLayer==='surface'&&startLake?{x:startLake.x+startLake.rx+85,y:startLake.y}:null)||startBridge||(startLayer==='surface'?randomSurfaceSpawn():null)||LAYERS[startLayer]?.spawn||(startLayer==='deep'?DEEP_CAVES.spawn:startLayer==='cave'?{x:3950,y:2700}:SURFACE.spawn);
+const islandStart=startLayer==='surface'&&params.get('start')==='vip-island'?{x:VIP_ISLAND.x-30,y:VIP_ISLAND.y+330}:null;
+const initial=islandStart||(requestedLounge?{x:550,y:445}:null)||frontierStart||startPortal?.[startLayer]||(startLayer==='surface'&&startLake?{x:startLake.x+startLake.rx+85,y:startLake.y}:null)||startBridge||(startLayer==='surface'?randomSurfaceSpawn():null)||LAYERS[startLayer]?.spawn||(startLayer==='deep'?DEEP_CAVES.spawn:startLayer==='cave'?{x:3950,y:2700}:SURFACE.spawn);
 const player={x:initial.x,y:initial.y,facing:Math.PI*1.5,moving:false,jumpHeight:0,jumpActive:false};
 player.layer=startLayer;if(startLayer==='surface'&&!startPortal&&!startLake)populateSpawnSupplies(spawnables,player);
 const diving=new DivingSession(),buffs=new StatusEffects(),quests=new QuestBook(),npcs=new NpcRegistry(),frontierNodes=new FrontierNodes(zones);
@@ -267,7 +269,7 @@ function interact(){
   if(drop){drops.collect(drop);inventory.add(drop.resource,drop.amount);showToast(`Picked up ${drop.amount} ${drop.resource}`);renderInventory();renderCrafting();updateHud();worldBridge.publishInteraction({kind:'pickup-loot',targetId:drop.id,resource:drop.resource,amount:drop.amount,x:player.x,y:player.y,layer});return;}
   const portal=nearestPortal(player.x,player.y,layer);
   if(portal){transition();return;}
-  const npc=npcs.nearest(player);if(npc){if(npc.role==='brothel')townUI.open(buildingForLayer(layer),npc);else frontierUI.showJournal(npc);return;}
+  const npc=npcs.nearest(player);if(npc){if(npc.role==='vip'){showToast(`${npc.name}: “${npc.greeting}”`,7500);return;}if(npc.role==='brothel')townUI.open(buildingForLayer(layer),npc);else frontierUI.showJournal(npc);return;}
   const special=frontierNodes.nearest(player);if(special){collectFrontier(special);return;}
   const building=buildingForLayer(layer);
   if(building){if(building.type==='casino'){const activity=casinoActivityAt(player.x,player.y);if(activity)casinoUI.open(activity.id,building.name);}else if(interiorActivity())townUI.open(building);return;}

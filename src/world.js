@@ -1,3 +1,4 @@
+import {VIP_ISLAND,islandDistance,dockDistance,pavilionBlocks} from './vip-island.js';
 import {FRONTIER_BIOMES,FRONTIER_PATHS,FRONTIER_CAVE_ENTRIES,MOUNTAINS,mountainAt,plateauAt,coastline} from './frontier-world.js';
 import {roundedPathPoints} from './path-geometry.js';
 import { MATERIALS } from './materials.js';
@@ -54,6 +55,7 @@ export function pointInPolygon(x, y, polygon) {
 }
 
 export function biomeAt(x, y, layer = 'surface') {
+  if(layer==='surface'&&islandDistance(x,y)>0)return {id:'badlands',name:VIP_ISLAND.name,color:'#b7bd76'};
   if(layer==='ocean')return {id:'ocean',name:'The Sunken Reach',color:'#287f99'};
   const building=buildingForLayer(layer);if(building)return {id:building.biome||'heartlands',name:building.name,color:'#526858'};
   if(EXTRA_CAVES[layer]){const room=EXTRA_CAVES[layer].rooms.reduce((best,r)=>Math.hypot(x-r.x,y-r.y)<Math.hypot(x-best.x,y-best.y)?r:best);return {id:room.biome,name:room.name,color:'#655782',edge:'#ad93c8'};}
@@ -102,7 +104,7 @@ export const LAKES = [
 export function lakeShape(lake,angle){const seed=LAKES.indexOf(lake)*1.37;return .87+.085*Math.sin(angle*3+seed)+.045*Math.cos(angle*5-seed);}
 export function lakeDistance(lake,x,y){const dx=(x-lake.x)/lake.rx,dy=(y-lake.y)/lake.ry;return (Math.hypot(dx,dy)-lakeShape(lake,Math.atan2(dy,dx)))*Math.min(lake.rx,lake.ry);}
 export function lakeOutline(lake){return Array.from({length:80},(_,i)=>{const a=i*Math.PI/40,r=lakeShape(lake,a);return [lake.x+Math.cos(a)*lake.rx*r,lake.y+Math.sin(a)*lake.ry*r];});}
-export function oceanDistance(x,y){return coastline(y)-x;}
+export function oceanDistance(x,y){return Math.max(coastline(y)-x,islandDistance(x,y),dockDistance(x,y));}
 export function waterAt(x,y,layer='surface'){
  if(layer!=='surface')return false;
  if(oceanDistance(x,y)<0||lakeAt(x,y))return true;
@@ -287,6 +289,7 @@ export function canWalk(x, y, layer = 'surface', radius = PLAYER_RADIUS, swimmin
   if (x < radius || y < radius || x > bounds.width - radius || y > bounds.height - radius) return false;
   if(layer==='ocean')return oceanDistance(x,y)<-20;
   if (layer === 'surface') {
+    if(pavilionBlocks(x,y,radius))return false;
     const mountain=mountainAt(x,y);if(mountain&&!plateauAt(x,y)&&!mountain.trail.slice(1).some((b,i)=>distanceToSegment(x,y,...mountain.trail[i],...b)<175-radius))return false;
     if(TOWN_BUILDINGS.some(b=>!b.hut&&Math.abs(x-b.x)<b.width/2+radius&&Math.abs(y-b.y)<b.height/2+radius))return false;
     if (HUTS.some(h => Math.hypot(x - h.x, y - h.y) < h.r + radius)) return false;
@@ -331,6 +334,7 @@ export function nearestPortal(x, y, layer, range = 125) {
 
 export function nearbyPlace(x, y, layer) {
   const building=buildingForLayer(layer);if(building)return building.name;
+  if(layer==='surface'&&(islandDistance(x,y)>-100||dockDistance(x,y)>-30))return VIP_ISLAND.name;
   if(layer==='surface'&&mountainAt(x,y))return mountainAt(x,y).name;
   if(layer==='ocean')return 'The Sunken Reach';
   if(layer==='surface'){const town=TOWNS.find(t=>Math.hypot(x-t.x,y-t.y)<850);if(town)return town.name;}

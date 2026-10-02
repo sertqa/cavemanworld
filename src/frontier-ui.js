@@ -6,7 +6,7 @@ import {altitudeAt} from './frontier-world.js';
 const $=id=>document.getElementById(id);
 export class FrontierUI{
  constructor({inventory,quests,npcs,player,diving,buffs,openModal,onChange,toast}){Object.assign(this,{inventory,quests,npcs,player,diving,buffs,openModal,onChange,toast});
-  $('questNpc').replaceChildren();for(const n of npcs.items.filter(n=>n.role!=='brothel')){const o=document.createElement('option');o.value=n.id;o.textContent=n.name+' · '+n.layer;$('questNpc').append(o);}
+  $('questNpc').replaceChildren();for(const n of npcs.items.filter(n=>!['brothel','vip'].includes(n.role))){const o=document.createElement('option');o.value=n.id;o.textContent=n.name+' · '+n.layer;$('questNpc').append(o);}
   $('questNpc').addEventListener('change',()=>this.renderQuest());$('claimQuest').addEventListener('click',()=>{const n=this.selectedNpc();if(Math.hypot(n.x-player.x,n.y-player.y)>180||n.layer!==player.layer)return;const result=quests.claim(n,inventory);$('questFeedback').textContent=result.message;onChange();this.renderQuest();});
   $('questsButton').addEventListener('click',()=>this.showJournal());
   $('machineResource').innerHTML=RESOURCES.map(id=>`<option value="${id}">${resourceName(id)}</option>`).join('');

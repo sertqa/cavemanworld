@@ -1,3 +1,5 @@
+import {VIP_ISLAND} from './vip-island.js';
+import {drawIslandGround,islandObjects,drawVip} from './vip-island-art.js';
 import {frontierNode,aquaticOrBoss,drawStructure,drawMountains,drawTransport,drawSeafloor} from './frontier-art.js';
 import {elevationOffset,MOUNTAINS,FISHERMAN} from './frontier-world.js';
 import { EXTRA_CAVES,LAYERS,caveGeometry,portalDirection } from './world.js';
@@ -27,9 +29,9 @@ export class PixelWorldRenderer extends WorldRenderer {
     ctx.save();ctx.translate(this.width/2,this.height/2);ctx.scale(zoom,zoom*CAMERA_TILT);ctx.translate(-camera.x,-camera.y);
     const building=buildingForLayer(layer);
     if(building)drawCasinoFloor(ctx,this.art,building);else this.art.terrain(ctx,b,layer);
-    if(layer==='surface')this.drawWaterMotion(ctx,b,time);if(layer==='ocean')drawSeafloor(this.art,ctx,b,time);
+    if(layer==='surface'){drawIslandGround(ctx,b);this.drawWaterMotion(ctx,b,time);}if(layer==='ocean')drawSeafloor(this.art,ctx,b,time);
     const visible=(x,y,pad=300)=>x>b.left-pad&&x<b.right+pad&&y>b.top-pad&&y<b.bottom+pad;
-    const objects=[];
+    const objects=layer==='surface'?islandObjects(ctx,b,time):[];
     const entityBounds={...b,bottom:b.bottom+1100};
     if(layer==='surface')drawMountains(ctx,b,time);
     this.drawPuddles(ctx,projectiles,layer,b,time);
@@ -46,7 +48,7 @@ export class PixelWorldRenderer extends WorldRenderer {
     for(const fire of structures.visible(entityBounds,layer))objects.push({y:fire.y,x:fire.x,draw:()=>fire.kind?drawStructure(this.art,ctx,fire,time):this.art.fire(ctx,fire.x,fire.y,time,fire.fuel>0)});
     for(const n of frontier?.nodes.visible(entityBounds,layer)||[])objects.push({x:n.x,y:n.y,draw:()=>frontierNode(this.art,ctx,n,time)});
     const visibleNpcs=frontier?.npcs.visible(entityBounds,layer)||[];
-    for(const n of visibleNpcs)objects.push({x:n.x,y:n.y,draw:()=>{this.art.player(ctx,n,{equippedGear:null,equippedTool:n.role==='fisherman'?{id:'fishing-rod',type:'rod'}:null},time);if(n.role==='fisherman'){ctx.fillStyle='#d6bf87';ctx.fillRect(n.x-21,n.y-94,42,5);ctx.fillRect(n.x-13,n.y-105,26,13);}}});
+    for(const n of visibleNpcs)objects.push({x:n.x,y:n.y,draw:()=>{if(n.role==='vip'){drawVip(ctx,this.art,n,time);return;}this.art.player(ctx,n,{equippedGear:null,equippedTool:n.role==='fisherman'?{id:'fishing-rod',type:'rod'}:null},time);if(n.role==='fisherman'){ctx.fillStyle='#d6bf87';ctx.fillRect(n.x-21,n.y-94,42,5);ctx.fillRect(n.x-13,n.y-105,26,13);}}});
     const visibleCreatures=creatures.visible(entityBounds,layer);
     for(const creature of visibleCreatures)objects.push({y:creature.y,x:creature.x,draw:()=>{if(!aquaticOrBoss(this.art,ctx,creature,time))this.art.creature(ctx,creature,time);if(creature.charger&&creature.windupUntil>time){ctx.strokeStyle='#ef996a';ctx.lineWidth=4;ctx.strokeRect(creature.x-43,creature.y-38,86,76);}}});
     objects.push({y:player.y,x:player.x,draw:()=>{drawTransport(ctx,player,time);this.art.player(ctx,{...player,swimming:player.swimming&&!player.vehicle?.boat},inventory,time,fishing);}});
@@ -127,6 +129,7 @@ export class PixelWorldRenderer extends WorldRenderer {
     if(this.art.atlas){ctx.save();ctx.imageSmoothingEnabled=true;ctx.drawImage(this.art.atlas,0,0,SURFACE.width,SURFACE.height);ctx.restore();}
     this.drawRiver(ctx);for(const lake of LAKES){ctx.fillStyle='#2c8bc7';ctx.beginPath();lakeOutline(lake).forEach((p,i)=>i?ctx.lineTo(...p):ctx.moveTo(...p));ctx.closePath();ctx.fill();}this.drawPaths(ctx,true);
     this.drawPortals(ctx,'surface',b,true);
+    ctx.fillStyle='#e4d4a1';ctx.beginPath();ctx.ellipse(VIP_ISLAND.x,VIP_ISLAND.y,VIP_ISLAND.rx,VIP_ISLAND.ry,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#6d9859';ctx.beginPath();ctx.ellipse(VIP_ISLAND.x,VIP_ISLAND.y,VIP_ISLAND.rx*.75,VIP_ISLAND.ry*.75,0,0,Math.PI*2);ctx.fill();this.text(ctx,'Palm VIP Island',VIP_ISLAND.x-700,VIP_ISLAND.y+1400,230,'#f4e4ad');
     for(const m of MOUNTAINS){ctx.fillStyle=m.color;ctx.beginPath();ctx.ellipse(m.x,m.y,m.rx,m.ry,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#d4d9c3';ctx.beginPath();ctx.ellipse(m.x,m.y,m.rx*.36,m.ry*.36,0,0,Math.PI*2);ctx.fill();}ctx.fillStyle='#ffd88c';ctx.fillRect(FISHERMAN.x-90,FISHERMAN.y-90,180,180);
     ctx.fillStyle='#f6d075';ctx.fillRect(CASINO_BUILDING.x-140,CASINO_BUILDING.y-140,280,280);
     for(const town of TOWNS){ctx.fillStyle='#f4d996';ctx.fillRect(town.x-170,town.y-170,340,340);}
