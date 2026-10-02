@@ -27,7 +27,7 @@ Run automated tests with `node --test` or `npm test`.
 | Craft / inventory / atlas | C / I / M |
 | Hotbar | 1–6 |
 | Eat cooked food | H |
-| Dive / surface in the ocean | V |
+| Dive / surface in the ocean | V / Surface button while underwater |
 | Quest journal | J |
 | Rotate walls and gates before placement | R |
 | Pouch / HUD settings | P / O |
@@ -55,11 +55,11 @@ Depth 2–4 ores also craft swords, spears, and warhammers. Swords deal more dam
 
 ## Ocean and mountain expeditions
 
-The surface now has **three times the previous area**, nine additional biome regions, three inland mountain ranges, and six additional cave entrances. All four cave layers keep aligned coordinates and gain connected frontier chambers. The atlas marks Marlow and the mountain ranges. NPCs wander woodland and cave rooms with seven distinct skin, hair, clothing, and facial styles; every third errand is a larger expedition.
+The surface now has **three times the previous area**, nine additional biome regions, three inland mountain ranges, and six additional cave entrances. Mountain slopes have opaque rock faces, raised ridgelines, and visible edges; follow the marked switchback trail to the open summit. Moving with a Crystal Glider lifts the pilot into a flying pose, and stopping lands them. Side views show a broad canopy overhead and a prone pilot with both hands reaching forward to the control bar. The glider, scooter and raft face the rider’s heading; scooter stems remain upright as the deck turns. Bigfoot feces splats on impact or at its aimed landing point, leaving a visible eight-second hazard that deals eight base damage at most once per second; jumping and gliding avoid the splat. Logs remain direct rolling attacks. All four cave layers keep aligned coordinates and gain connected frontier chambers. The atlas marks Marlow and the mountain ranges. NPCs wander woodland and cave rooms with seven distinct skin, hair, clothing, and facial styles; every third errand is a larger expedition.
 
 **Marlow the Fisherman** waits on the eastern beach near **87,219, 14,500** (the shoreline bends). Press E beside him, or J to review quest objectives and his location. Hand-ins require returning to the NPC. Supplies and fish are consumed; wreck proof counts distinct chests, not repeated claims. His ten trials progressively require higher-ranked fish, diving resources, creature defeats, and deep wreck surveys. Rewards include a starter rod, a Diver Wrap, a Reef Rod, a raft, an Abyss Rod, and finally **Tidekeeper Armor**. Equip armor in inventory; rewards and ordinary crafts never auto-equip. Tidekeeper Armor is a quest reward, not a free crafting recipe.
 
-Enter ocean water and press **V** to dive. Swimming more than 750 units offshore for four seconds also dives automatically, except on a raft. The separate seafloor layer contains coral, pearls, kelp, wreck treasure, crabs, turtles, jellyfish, rays, sharks, eels, squid, and fish. Breath normally lasts 35 seconds; a Diver Wrap holds 70 seconds after refilling at the surface. No air causes eight damage per second, ignoring armor. V surfaces at the same position. Tidekeeper Armor allows unlimited breathing. Deep predators are stronger. Wreck chests can be claimed once per page session and hold pearls, sea essence, coins, and—in deep wrecks—sunken relics.
+Enter ocean water and press **V** to dive. Swimming more than 750 units offshore for four seconds also dives automatically, except on a raft. The separate seafloor layer contains coral, pearls, kelp, wreck treasure, crabs, turtles, jellyfish, rays, sharks, eels, squid, and fish. Giant squids telegraph an ink spray, aim at your position, and send out a growing cloud that lasts six seconds. Entering it partially obscures your view; swim out and vision fades back over roughly three seconds. Surfacing clears ink immediately. Ink does not hide the HUD or Surface button. Breath normally lasts 35 seconds; a Diver Wrap holds 70 seconds after refilling at the surface. No air causes eight damage per second, ignoring armor. V or the visible Surface button ascends from any ocean depth at the same position. A manual ascent prevents automatic re-diving until you return toward shore (or choose V to dive again); swim west to reach the beach. Tidekeeper Armor allows unlimited breathing. Deep predators are stronger. Wreck chests can be claimed once per page session and hold pearls, sea essence, coins, and—in deep wrecks—sunken relics.
 
 Fish sizes and raw sale prices rise from Sprat (10 cm, 2 coins) to Coelacanth (127 cm, 250 coins). Perch, trout and sturgeon inhabit freshwater; salmon occur in both water types. Higher-ranked fish need quest progression, better rods, and deeper casting water. Cook any caught species in a fueled campfire; it becomes cooked fish that heals 30. Valuable trophy fish are usually better sold or saved for quests.
 
@@ -87,6 +87,8 @@ Craft a kit, drag it from inventory into the hotbar, select it, and click nearby
 | Crystal Drill | A motorized pickaxe with 22 mining power and 28 harvest yield. |
 
 Dried marijuana temporarily multiplies maximum/current health and earned XP by **1.5 for 60 seconds**. Using another refreshes the duration without stacking. Health returns proportionally when the effect ends. Fish traps and mining machines store output; they do not award unattended XP or generate resources from nonexistent deposits.
+
+Each town has a brothel with rose lanterns, curtains, velvet divans and three adult women. Walk up and press **E** to talk, choose a guest and flirt. Sharing a drink costs 10 coins; resting costs 25 coins and restores up to 40 health. These lounges use the same wallet and health as the rest of the game. For a direct visit, open `?start=hearth-brothel-lounge&layer=hearth-brothel`.
 
 For quick local beta visits, use `http://localhost:3000/?start=fisherman`, `?start=pinecrest`, `?start=pinecrest-summit`, `?start=whisper-cave`, or `?layer=ocean`. The normal URL still starts safely near a town. Key **7** provides existing beta item and level controls; Alt retains the travel boost.
 
