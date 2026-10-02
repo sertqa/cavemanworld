@@ -1,3 +1,5 @@
+import {OceanInkRegistry} from './ocean-ink.js';
+import {updateGliding} from './gliding.js';
 import {DivingSession,StatusEffects,QuestBook,NpcRegistry,FrontierNodes} from './expeditions.js';
 import {FrontierUI} from './frontier-ui.js';
 import {populateFrontierCreatures} from './frontier-creatures.js';
@@ -44,7 +46,7 @@ const hotbar=new Hotbar(),structures=new StructureRegistry();
 let openCampfire=null;
 const creatures=new CreatureRegistry();populateCreatures(creatures);
 const vitals=new PlayerVitals();
-const drops=new LootRegistry(),projectiles=new ProjectileRegistry();
+const drops=new LootRegistry(),projectiles=new ProjectileRegistry(),oceanInk=new OceanInkRegistry();
 const fishing=new FishingSession();
 export { worldBridge, zones };
 
@@ -56,8 +58,9 @@ const startPortal=[...PORTALS,...DESCENTS,...BUILDING_PORTALS].find(p=>p.id===pa
 const startLake=LAKES.find(l=>l.id===params.get('start'));
 const startBridge=startLayer==='surface'&&params.get('start')==='mire-crossing'?{x:8200,y:7850}:null;
 const requestedMountain=MOUNTAINS.find(m=>params.get('start')===m.id||params.get('start')===m.id+'-summit');
-const frontierStart=startLayer==='ocean'?{x:coastline(14500)+220,y:14500}:params.get('start')==='fisherman'?{x:FISHERMAN.x-70,y:FISHERMAN.y+70}:requestedMountain?{x:requestedMountain.x,y:params.get('start').endsWith('-summit')?requestedMountain.y+650:requestedMountain.y+requestedMountain.ry+210}:null;
-const initial=frontierStart||startPortal?.[startLayer]||(startLayer==='surface'&&startLake?{x:startLake.x+startLake.rx+85,y:startLake.y}:null)||startBridge||(startLayer==='surface'?randomSurfaceSpawn():null)||LAYERS[startLayer]?.spawn||(startLayer==='deep'?DEEP_CAVES.spawn:startLayer==='cave'?{x:3950,y:2700}:SURFACE.spawn);
+const frontierStart=startLayer==='ocean'?{x:coastline(14500)+(params.get('start')==='deep-ocean'?1800:220),y:14500}:params.get('start')==='fisherman'?{x:FISHERMAN.x-70,y:FISHERMAN.y+70}:requestedMountain?{x:requestedMountain.x,y:params.get('start').endsWith('-summit')?requestedMountain.y+650:requestedMountain.y+requestedMountain.ry+210}:null;
+const requestedLounge=TOWN_BUILDINGS.find(b=>b.type==='brothel'&&b.layer===startLayer&&params.get('start')===b.id+'-lounge');
+const initial=(requestedLounge?{x:550,y:445}:null)||frontierStart||startPortal?.[startLayer]||(startLayer==='surface'&&startLake?{x:startLake.x+startLake.rx+85,y:startLake.y}:null)||startBridge||(startLayer==='surface'?randomSurfaceSpawn():null)||LAYERS[startLayer]?.spawn||(startLayer==='deep'?DEEP_CAVES.spawn:startLayer==='cave'?{x:3950,y:2700}:SURFACE.spawn);
 const player={x:initial.x,y:initial.y,facing:Math.PI*1.5,moving:false,jumpHeight:0,jumpActive:false};
 player.layer=startLayer;if(startLayer==='surface'&&!startPortal&&!startLake)populateSpawnSupplies(spawnables,player);
 const diving=new DivingSession(),buffs=new StatusEffects(),quests=new QuestBook(),npcs=new NpcRegistry(),frontierNodes=new FrontierNodes(zones);
@@ -74,7 +77,7 @@ let pointerInventoryDrag=null;
 const keys=new Set();
 const mouse={x:renderer.width/2,y:renderer.height/2};
 const casinoUI=new CasinoUI({inventory,openModal:()=>setModal('casinoModal',true),onInteraction:detail=>worldBridge.publishInteraction({...detail,x:player.x,y:player.y,layer})});
-const townUI=new TownUI({inventory,openModal:()=>setModal('townModal',true),onChange:detail=>{renderInventory();renderCrafting();renderHotbar();updateHud();worldBridge.publishInteraction({...detail,x:player.x,y:player.y,layer});}});
+const townUI=new TownUI({inventory,vitals,npcs,openModal:()=>setModal('townModal',true),onChange:detail=>{renderInventory();renderCrafting();renderHotbar();updateHud();worldBridge.publishInteraction({...detail,x:player.x,y:player.y,layer});}});
 const frontierUI=new FrontierUI({inventory,quests,npcs,player,diving,buffs,openModal:id=>setModal(id,true),onChange:()=>{renderInventory();renderCrafting();renderHotbar();updateHud();},toast:showToast});
 function interiorActivity(){return buildingForLayer(layer)?.type!=='casino'&&buildingForLayer(layer)&&Math.hypot(player.x-INTERIOR_ACTIVITY.x,player.y-INTERIOR_ACTIVITY.y)<180;}
 
@@ -251,15 +254,17 @@ function placeFrontier(point,kind){
 }
 function toggleDive(){
  if(layer!=='ocean'&&!diving.canDive(player)){showToast('Enter ocean water, then press V to dive');return;}
- layer=layer==='ocean'?'surface':'ocean';player.layer=layer;player.underwater=layer==='ocean';player.vehicle=null;player.grappleTarget=null;player.jumpActive=false;player.jumpHeight=0;fishing.cancel();projectiles.clear();camera.y=player.y;worldBridge.publishPosition({x:player.x,y:player.y,layer,facing:player.facing});worldBridge.publishInteraction({kind:layer==='ocean'?'dive':'surface',x:player.x,y:player.y,layer});showToast(layer==='ocean'?'Ocean floor · watch your breath · V to surface':'Surfaced · breath recovering');updateHud();drawFullMap();
+ if(layer==='ocean')diving.surfaced();else diving.surfaceLock=false;
+ layer=layer==='ocean'?'surface':'ocean';player.layer=layer;player.underwater=layer==='ocean';player.vehicle=null;player.grappleTarget=null;player.jumpActive=false;player.jumpHeight=0;fishing.cancel();projectiles.clear();oceanInk.clear(player);camera.y=player.y;worldBridge.publishPosition({x:player.x,y:player.y,layer,facing:player.facing});worldBridge.publishInteraction({kind:layer==='ocean'?'dive':'surface',x:player.x,y:player.y,layer});showToast(layer==='ocean'?'Ocean floor · Surface button or V to ascend':'Surfaced · swim WEST to shore · V to dive again',4500);updateHud();drawFullMap();
 }
+$('surfaceButton').addEventListener('click',()=>{if(layer==='ocean'){document.querySelectorAll('.modal').forEach(m=>m.classList.add('hidden'));toggleDive();}});
 function interact(){
   if(fishing.active){finishFishing();return;}
   const drop=drops.nearest(player.x,player.y,layer,performance.now());
   if(drop){drops.collect(drop);inventory.add(drop.resource,drop.amount);showToast(`Picked up ${drop.amount} ${drop.resource}`);renderInventory();renderCrafting();updateHud();worldBridge.publishInteraction({kind:'pickup-loot',targetId:drop.id,resource:drop.resource,amount:drop.amount,x:player.x,y:player.y,layer});return;}
   const portal=nearestPortal(player.x,player.y,layer);
   if(portal){transition();return;}
-  const npc=npcs.nearest(player);if(npc){frontierUI.showJournal(npc);return;}
+  const npc=npcs.nearest(player);if(npc){if(npc.role==='brothel')townUI.open(buildingForLayer(layer),npc);else frontierUI.showJournal(npc);return;}
   const special=frontierNodes.nearest(player);if(special){collectFrontier(special);return;}
   const building=buildingForLayer(layer);
   if(building){if(building.type==='casino'){const activity=casinoActivityAt(player.x,player.y);if(activity)casinoUI.open(activity.id,building.name);}else if(interiorActivity())townUI.open(building);return;}
@@ -274,7 +279,7 @@ function transition(){
   const from=layer;
   fishing.cancel();
   layer=portalDestination(p,layer);
-  projectiles.clear();
+  projectiles.clear();oceanInk.clear(player);
   player.layer=layer;player.swimming=false;player.jumpActive=false;player.jumpHeight=0;const dest=p[layer];player.x=dest.x;player.y=dest.y;camera.x=player.x+camera.lookX;camera.y=player.y+camera.lookY;
   lastTransition=performance.now();selectedZone=null;refreshZonePanel();drawFullMap();renderer.drawOverview($('minimap'),layer,player,zones,showZones);
   worldBridge.publishInteraction({kind:buildingForLayer(layer)?'enter-building':buildingForLayer(from)?'exit-building':from==='surface'?'enter-cave':layer==='surface'?'exit-cave':Object.keys(LAYERS).indexOf(layer)>Object.keys(LAYERS).indexOf(from)?'descend-cave':'ascend-cave',targetId:p.id,x:player.x,y:player.y,layer});
@@ -535,6 +540,7 @@ function update(dt,now){
       player.moving=Math.hypot(player.x-beforeX,player.y-beforeY)>.01;if(!player.moving)player.grappleTarget=null;
     }
   }else player.moving=false;
+  updateGliding(player,dt);
   structures.update(dt);npcs.update(dt,now,player);frontierNodes.update(now);
   if(now-lastHud>170)frontierUI.update(now);
   if(!$('townModal').classList.contains('hidden')&&townUI.building?.type==='house'&&now-lastHud>170)townUI.render();
@@ -543,16 +549,18 @@ function update(dt,now){
     const hurt=(damage,source)=>{
       const result=vitals.takeDamage(damage,source==='Drowning'?null:inventory.equippedGear,now,source==='Drowning'?1:currentEffects().stats.defense);
       if(result.damage){showToast(`${source} hit you · −${result.damage} health`,900);updateHud();}
-      if(result.dead){vitals.respawn(now);diving.reset();player.grappleTarget=null;fishing.cancel();layer='surface';player.layer=layer;player.swimming=false;player.jumpActive=false;player.jumpHeight=0;Object.assign(player,randomSurfaceSpawn());camera.lookX=0;camera.lookY=0;camera.x=player.x;camera.y=player.y;projectiles.clear();showToast('You fell in the caves and returned to a safe town outskirts',3500);worldBridge.publishInteraction({kind:'respawn',x:player.x,y:player.y,layer});}
+      if(result.dead){vitals.respawn(now);diving.reset();player.grappleTarget=null;fishing.cancel();layer='surface';player.layer=layer;player.swimming=false;player.jumpActive=false;player.jumpHeight=0;Object.assign(player,randomSurfaceSpawn());camera.lookX=0;camera.lookY=0;camera.x=player.x;camera.y=player.y;projectiles.clear();oceanInk.clear(player);showToast('You fell in the caves and returned to a safe town outskirts',3500);worldBridge.publishInteraction({kind:'respawn',x:player.x,y:player.y,layer});}
       return result.dead;
     };
     const drowning=diving.update(dt,player,inventory);if(diving.wetTime>4)toggleDive();
     let defeated=drowning?hurt(drowning,'Drowning'):false;
     for(const strike of creatures.update(dt,now,player,(x,y,l,r)=>canWalk(x,y,l,r)&&!structures.blocks(x,y,l,r))){
-      if(strike.projectile)projectiles.launch(strike.projectile,strike.creature.id,now);
+      if(strike.ink)oceanInk.spray(strike.ink,now);
+      else if(strike.projectile)projectiles.launch(strike.projectile,strike.creature.id,now);
       else if(hurt(strike.damage,strike.creature.name)){defeated=true;break;}
     }
-    if(!defeated)for(const hit of projectiles.update(dt,now,player,creatures,structures)){if(hit.target){rewardHit(hit.target,hit.result,hit.damage,now);renderInventory();renderCrafting();updateHud();}else if(hurt(hit.damage,hit.kind==='log'?'Rolling log':hit.kind==='feces'?'Bigfoot projectile':'Scorpion rock'))break;}
+    if(!defeated)for(const hit of projectiles.update(dt,now,player,creatures,structures)){if(hit.target){rewardHit(hit.target,hit.result,hit.damage,now);renderInventory();renderCrafting();updateHud();}else if(hurt(hit.damage,hit.kind==='log'?'Rolling log':hit.kind==='feces-puddle'?'Bigfoot splat':hit.kind==='feces'?'Bigfoot projectile':'Scorpion rock'))break;}
+    oceanInk.update(dt,now,player);
     drops.update(now);
   }
   const fishUpdate=fishing.update(now,player);if(fishUpdate)showToast(fishUpdate);
@@ -601,8 +609,8 @@ function updateHud(){
   else if(targetDrop)$('portalText').textContent=`Pick up ${targetDrop.amount} ${targetDrop.resource}`;
   else if(p)$('portalText').textContent=BUILDING_PORTALS.includes(p)?`${layer==='surface'?'Enter':'Leave'} ${p.name}`:`Travel to ${LAYER_NAMES[portalDestination(p,layer)]} · ${p.name} (${portalDirection(p,layer)})`;
   else if(activity)$('portalText').textContent=activity.id==='slots'?'Play casino games · coins':'Play blackjack against the dealer';
-  else if(townActivity)$('portalText').textContent=({shop:'Trade resources · general shop',smith:'Upgrade tools · blacksmith',house:'Open supply chest · refills every 2 minutes'})[buildingForLayer(layer).type];
-  else if(nearNpc)$('portalText').textContent='Talk to '+nearNpc.name+' · quests';
+  else if(townActivity)$('portalText').textContent=({shop:'Trade resources · general shop',smith:'Upgrade tools · blacksmith',house:'Open supply chest · refills every 2 minutes',brothel:'Meet the hostess · velvet lounge'})[buildingForLayer(layer).type];
+  else if(nearNpc)$('portalText').textContent='Talk to '+nearNpc.name+(nearNpc.role==='brothel'?' · lounge':' · quests');
   else if(nearSpecial)$('portalText').textContent=nearSpecial.label+' · collect';
   else if(nearFire)$('portalText').textContent=nearFire.kind==='wood-gate'?'Toggle gate':nearFire.kind?'Use '+RECIPES.find(r=>r.id===nearFire.kind).name:'Open campfire · cook meat or fish';
   else if(targetNode){const n=targetNode;$('portalText').textContent=n.kind==='bush'?'Forage Bush · sticks + leaves':n.kind==='ground'?`Pick up ${n.label}`:`${n.kind==='tree'?'Chop':'Mine'} ${n.label} · ${n.quantity}/${n.maxQuantity} · ${n.kind==='tree'?'axe':`${n.rarity?`${n.rarity} · `:''}${['obsidian','moonstone'].includes(n.resource)?'iron pickaxe':'pickaxe'}`} needed`;}
@@ -612,7 +620,7 @@ let frameWork=0;
 function frame(now){
   const workStart=performance.now();
   const dt=Math.max(0,Math.min(.05,(now-lastFrame)/1000));lastFrame=now;
-  update(dt,now);renderer.render({camera,zoom,player,layer,zones,showZones,selectedZone,editZones:devMode,spawnables,structures,creatures,drops,projectiles,fishing,targetNode,targetDrop,inventory,time:now,frontier:{npcs,nodes:frontierNodes,quests}});
+  update(dt,now);renderer.render({camera,zoom,player,layer,zones,showZones,selectedZone,editZones:devMode,spawnables,structures,creatures,drops,projectiles,oceanInk,fishing,targetNode,targetDrop,inventory,time:now,frontier:{npcs,nodes:frontierNodes,quests}});
   frameWork+=performance.now()-workStart;fpsFrames++;
   if(now-fpsStart>=1000){$('perfStats').textContent=`${Math.round(fpsFrames*1000/(now-fpsStart))} FPS · ${(frameWork/fpsFrames).toFixed(1)} ms/frame · ${layer} · ${zoom.toFixed(2)}× zoom · terrain ${renderer.art.worker?'worker':'fallback'}`;fpsFrames=0;frameWork=0;fpsStart=now;}
   requestAnimationFrame(frame);

@@ -12,7 +12,7 @@ export class Bigfoot extends Creature{
   const d=Math.hypot(player.x-this.x,player.y-this.y),a=Math.atan2(player.y-this.y,player.x-this.x);this.facing=a;
   if(d<110&&now>=this.nextAttackAt){this.nextAttackAt=now+1300;return {creature:this,damage:34};}
   if(this.windupUntil){if(now<this.windupUntil)return null;this.windupUntil=0;const log=this.throwCount++%2===1;this.nextAttackAt=now+2400;
-   return {creature:this,projectile:{x:this.x+Math.cos(a)*55,y:this.y+Math.sin(a)*55,angle:a,speed:log?245:340,damage:log?38:25,layer:this.layer,kind:log?'log':'feces',radius:log?28:13,lifetime:6000}};
+   return {creature:this,projectile:{x:this.x+Math.cos(a)*55,y:this.y+Math.sin(a)*55,angle:a,speed:log?245:340,damage:log?38:25,layer:this.layer,kind:log?'log':'feces',radius:log?28:13,lifetime:6000,...(!log?{landingDistance:Math.max(80,d-55)}:{})}};
   }
   if(d<1300&&now>=this.nextAttackAt){this.windupUntil=now+650;return null;}
   const pace=d>200?120:35,x=this.x+Math.cos(a)*pace*dt,y=this.y+Math.sin(a)*pace*dt;

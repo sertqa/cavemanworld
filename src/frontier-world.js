@@ -9,8 +9,8 @@ export function mountainRadius(m,x,y){return Math.hypot((x-m.x)/m.rx,(y-m.y)/m.r
 export function mountainAt(x,y){return MOUNTAINS.find(m=>mountainRadius(m,x,y)<1)||null;}
 export function altitudeAt(x,y){const m=mountainAt(x,y);if(!m)return 0;const t=Math.max(0,Math.min(1,(1-mountainRadius(m,x,y))/.64));return m.height*t*t*(3-2*t);}
 export function plateauAt(x,y){const m=mountainAt(x,y);return !!m&&mountainRadius(m,x,y)<=.36;}
-export const elevationOffset=(x,y)=>altitudeAt(x,y)*.22;
-export function unprojectMountainPoint(point){let y=point.y;for(let i=0;i<8;i++)y=point.y+elevationOffset(point.x,y);return {x:point.x,y};}
+export const elevationOffset=(x,y)=>altitudeAt(x,y)*.45;
+export function unprojectMountainPoint(point){let y=point.y;for(let i=0;i<32;i++)y=point.y+elevationOffset(point.x,y);return {x:point.x,y};}
 export const COAST_X=87200;
 export function coastline(y){return COAST_X+240*Math.sin(y/1600)+100*Math.sin(y/530);}
 export const FISHERMAN={id:'fisherman',name:'Marlow the Fisherman',x:coastline(14500)-145,y:14500,layer:'surface',role:'fisherman',fixed:true};

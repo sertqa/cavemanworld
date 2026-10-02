@@ -1,3 +1,4 @@
+import {GLIDER_SIDE_HANDS,GLIDER_PILOT_SCALE} from './glider-pose.js';
 import {equipmentRecipe} from './bow-upgrades.js';
 import { ToyArt } from './toy-art.js';
 import { grain } from './pixel-art.js';
@@ -160,7 +161,37 @@ export class AdventureArt extends ToyArt {
       return {image,ax:75,ay:122};
     });this.shadow(ctx,h.x,h.y,h.r*.7);this.draw(ctx,sprite,h.x,h.y,1.85);
   }
+  drawGliderPilot(ctx,p,inventory,time){
+    this.shadow(ctx,p.x,p.y,21);
+    const side=Math.abs(Math.cos(p.facing))>.7,back=Math.sin(p.facing)<-.45,flip=Math.cos(p.facing)<-.7;
+    const sprite=this.sprite(`glider-pilot:${side}:${back}:${inventory.equippedGear?.tier}`,()=>{
+      const image=canvas(128,72),c=image.getContext('2d'),skin='#e4ad80',shirt=MATERIAL_COLORS[inventory.equippedGear?.tier]||'#bd8056';
+      if(side){
+        // Bent knees and boots trail behind a horizontal torso.
+        rect(c,15,44,24,6,'#626566');rect(c,10,38,8,12,'#7c7f76');rect(c,7,35,13,5,'#354951');
+        rect(c,21,52,21,6,'#626566');rect(c,17,45,7,13,'#7c7f76');rect(c,13,42,12,5,'#354951');
+        rect(c,37,38,31,17,shirt);rect(c,39,39,24,3,'#e7bc80');rect(c,37,38,5,17,'#795c47');
+        rect(c,65,30,17,19,skin);rect(c,64,27,18,7,'#634b39');rect(c,78,35,6,5,'#fff1d5');rect(c,81,36,2,3,'#354950');
+        // Both arms reach forward to the control bar, with the torso prone behind them.
+        const arm=(points,color)=>{c.fillStyle=color;c.beginPath();points.forEach((v,i)=>i?c.lineTo(...v):c.moveTo(...v));c.closePath();c.fill();};
+        arm([[55,38],[63,39],[80,44],[95,44],[97,49],[77,50],[57,45]],'#c68c65');
+        arm([[55,45],[63,45],[80,48],[101,48],[103,53],[78,54],[56,51]],skin);
+        for(const h of GLIDER_SIDE_HANDS)rect(c,h.x-2,h.y-2,5,5,'#f2c495');
+        rect(c,40,43,5,12,'#55707c');rect(c,38,49,26,3,'#55707c');rect(c,41,46,3,3,'#d4c28d');
+      }else{
+        for(const x of [37,52]){rect(c,x,47,7,13,'#626566');rect(c,x-3,55,8,5,'#354951');}
+        rect(c,34,32,28,20,shirt);rect(c,36,35,4,14,'#e7bc80');rect(c,34,49,28,3,'#795c47');
+        rect(c,29,26,6,17,skin);rect(c,60,26,6,17,skin);rect(c,29,25,12,5,'#f2c495');rect(c,55,25,11,5,'#f2c495');
+        rect(c,39,15,18,19,skin);rect(c,37,12,21,7,'#634b39');
+        if(back)rect(c,39,18,18,11,'#634b39');else{rect(c,40,22,6,4,'#fff1d5');rect(c,50,22,6,4,'#fff1d5');rect(c,43,23,2,3,'#354950');rect(c,51,23,2,3,'#354950');}
+      }
+      return {image,ax:48,ay:61};
+    });
+    this.draw(ctx,sprite,p.x,p.y-(p.flightHeight||0)-12,GLIDER_PILOT_SCALE,1,flip);
+  }
   player(ctx,p,inventory,time,fishing){
+    if(p.gliding){this.drawGliderPilot(ctx,p,inventory,time);return;}
+    if(p.vehicle?.glider)p={...p,jumpHeight:(p.jumpHeight||0)+(p.flightHeight||0)};
     if(p.swimming){this.drawSwimmer(ctx,p,inventory,time);return;}
     const back=Math.sin(p.facing)<-.45,side=Math.abs(Math.cos(p.facing))>.7,step=p.moving?[0,1,0,-1][Math.floor(time/145)%4]:0,armor=inventory.equippedGear?.tier,style=p.appearance||{},tool=fishing?.active?fishing.tool:inventory.equippedTool?.type==='transport'?null:inventory.equippedTool;
     const pose=playerArmPose(p,time,tool?.type,fishing);
@@ -218,6 +249,10 @@ export class AdventureArt extends ToyArt {
         rect(c,22,20,2,2,skinShade);rect(c,21,20,1,1,skinLight);
         rect(c,19,23,7,1,'#9d684b');rect(c,20,24,5,1,'#f0bb8d');
       }
+      if(style.dress){
+        const x=side?13:11,w=side?20:23;rect(c,x,43,w,9,shirt);rect(c,x-2,52,w+4,6,shirt);rect(c,x-2,56,w+4,2,'#3b35464d');rect(c,x+3,44,3,11,'#ffffff20');rect(c,x+2,43,w-4,2,'#dec08e');
+      }
+      if(style.lipstick&&!back)rect(c,19,23,7,1,'#b14e71');
       if(style.longHair){rect(c,10,12,4,15,hair);rect(c,31,12,4,15,hair);}
       if(style.curly){for(const [x,y] of [[11,7],[15,3],[22,1],[29,5],[32,10]])rect(c,x,y,5,5,hair);}
       if(style.bald){rect(c,15,5,15,6,skin);rect(c,17,4,10,2,skinLight);if(back)rect(c,15,8,14,10,skinShade);}

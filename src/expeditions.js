@@ -1,3 +1,5 @@
+import {brothelResidents} from './brothels.js';
+import {TOWN_BUILDINGS} from './town-data.js';
 import {MOUNTAINS,FISHERMAN,coastline,mountainAt} from './frontier-world.js';
 import {CAVE_ROOMS,DEEP_ROOMS,EXTRA_CAVES,canWalk,oceanDistance,BIOMES,waterAt} from './world.js';
 import {fishCount,consumeFish} from './fish-species.js';
@@ -5,7 +7,7 @@ import {RECIPES} from './crafting.js';
 import {Tool,Gear} from './spawnables.js';
 
 export class DivingSession{
- constructor(){this.breath=35;this.maxBreath=35;this.wetTime=0;this.damageTime=0;}
+ constructor(){this.breath=35;this.maxBreath=35;this.wetTime=0;this.damageTime=0;this.surfaceLock=false;}
  update(dt,player,inventory){
   const unlimited=inventory.equippedGear?.id==='tidekeeper-armor';this.maxBreath=inventory.equippedGear?.id==='diver-wrap'?70:35;this.breath=Math.min(this.breath,this.maxBreath);
   if(player.layer==='ocean'){
@@ -13,10 +15,12 @@ export class DivingSession{
    this.breath=Math.max(0,this.breath-dt);if(!this.breath){this.damageTime+=dt;if(this.damageTime>=1){this.damageTime-=1;return 8;}}return 0;
   }
   this.breath=Math.min(this.maxBreath,this.breath+dt*12);this.damageTime=0;
-  this.wetTime=player.layer==='surface'&&oceanDistance(player.x,player.y)<-750&&!player.vehicle?.boat?this.wetTime+dt:0;return 0;
+  if(oceanDistance(player.x,player.y)>=-750||player.vehicle?.boat)this.surfaceLock=false;
+  this.wetTime=!this.surfaceLock&&player.layer==='surface'&&oceanDistance(player.x,player.y)<-750&&!player.vehicle?.boat?this.wetTime+dt:0;return 0;
  }
+ surfaced(){this.surfaceLock=true;this.wetTime=0;this.damageTime=0;}
  canDive(player){return player.layer==='surface'&&oceanDistance(player.x,player.y)<-70;}
- reset(){this.breath=this.maxBreath;this.wetTime=0;this.damageTime=0;}
+ reset(){this.breath=this.maxBreath;this.wetTime=0;this.damageTime=0;this.surfaceLock=false;}
 }
 export class StatusEffects{
  constructor(){this.marijuanaUntil=0;}
@@ -37,6 +41,7 @@ export const NPC_APPEARANCES=[
 ];
 export class NpcRegistry{
  constructor(){this.items=[{...FISHERMAN,appearance:NPC_APPEARANCES[0],facing:Math.PI/2,moving:false}];
+  for(const b of TOWN_BUILDINGS.filter(b=>b.type==='brothel'))this.items.push(...brothelResidents(b));
   const woods=BIOMES.filter(b=>b.id==='woodland');
   for(let i=0;i<woods.length;i++){const b=woods[i],x=b.center[0]+700,y=b.center[1]+450;if(canWalk(x,y,'surface',60)&&!mountainAt(x,y))this.items.push({id:'woods-'+i,name:['Nala','Toma','Rin','Keva','Iris'][i%5]+' the Wayfarer',x,y,homeX:x,homeY:y,layer:'surface',role:'woods',appearance:NPC_APPEARANCES[1+i%6],facing:0});}
   for(const [layer,rooms] of [['cave',CAVE_ROOMS],['deep',DEEP_ROOMS],...Object.entries(EXTRA_CAVES).map(([l,g])=>[l,g.rooms])])for(let i=0;i<5;i++){const r=rooms[(i*5+2)%rooms.length];this.items.push({id:layer+'-guide-'+i,name:['Orren','Keva','Toma','Rin','Iris'][i]+' the Delver',x:r.x+200,y:r.y+250,homeX:r.x+200,homeY:r.y+250,layer,role:'cave',appearance:NPC_APPEARANCES[(i+3)%7],facing:Math.PI/2});}
@@ -60,7 +65,7 @@ export const FISHERMAN_QUESTS=[
 function grantItem(inv,id){const r=RECIPES.find(r=>r.id===id);if(!r||inv.owned.has(id))return;if(r.category==='structure')inv.structures[id]=(inv.structures[id]||0)+1;else inv.owned.set(id,r.category==='gear'?new Gear(r):new Tool(r));}
 export class QuestBook{
  constructor(){this.fisherman=0;this.steps={};this.proof={treasures:0,deepTreasures:0,reefCrab:0,seaPredators:0,mountainBoss:0};this.claimedChests=new Set();this.active=new Set(['fisherman']);}
- task(npc){if(npc.role==='fisherman')return FISHERMAN_QUESTS[this.fisherman]||null;
+ task(npc){if(npc.role==='brothel')return null;if(npc.role==='fisherman')return FISHERMAN_QUESTS[this.fisherman]||null;
   const step=(this.steps[npc.id]||0)%3;
   if(npc.role==='woods')return [
    {name:'Trail Supplies',resources:{leaves:12,wood:6},coins:50,xp:50,hint:'Every traveler needs dry fuel and a little shelter.'},

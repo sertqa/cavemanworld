@@ -1,3 +1,5 @@
+import {gliderSideRig} from './glider-pose.js';
+import {vehiclePoint} from './vehicle-pose.js';
 import {MOUNTAINS,elevationOffset,altitudeAt,coastline} from './frontier-world.js';
 import {distanceToSegment} from './world.js';
 import {fishSpecies} from './fish-species.js';
@@ -47,7 +49,9 @@ export function aquaticOrBoss(art,ctx,m,time){
  }
  return s;});
  const scale=m.kind==='bigfoot'?2.3:f?.rank?(.55+f.rank*.045):m.kind==='giantSquid'?1.5:1.1;
- art.shadow(ctx,m.x,m.y,m.radius);art.draw(ctx,sprite,m.x,m.y,scale,1,m.kind!=='bigfoot'&&Math.cos(m.facing)<0);return true;
+ art.shadow(ctx,m.x,m.y,m.radius);art.draw(ctx,sprite,m.x,m.y,scale,1,m.kind!=='bigfoot'&&Math.cos(m.facing)<0);
+ if(m.kind==='giantSquid'&&m.inkWindupUntil>time){const pulse=52+Math.sin(time*.02)*6;ctx.strokeStyle='#d0b0ea';ctx.lineWidth=4;ctx.beginPath();ctx.ellipse(m.x,m.y,pulse,pulse*.65,0,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#eed5f4';ctx.font='bold 17px monospace';ctx.textAlign='center';ctx.fillText('INK!',m.x,m.y-95);}
+ return true;
 }
 export function drawStructure(art,ctx,s,time){
  const phase=s.fuel>0?Math.floor(time/220)%4:0;
@@ -68,27 +72,105 @@ export function drawStructure(art,ctx,s,time){
  if(s.kind==='healing-totem'&&s.fuel){ctx.strokeStyle='#b7e4c15a';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(s.x,s.y,240,200,0,0,Math.PI*2);ctx.stroke();}
 }
 export function drawMountains(ctx,b,time){
- for(const m of MOUNTAINS){if(m.x+m.rx<b.left||m.x-m.rx>b.right||m.y+m.ry<b.top||m.y-m.ry-m.height*.22>b.bottom)continue;
-  // World-space contour terraces follow the same elevation projection as entities.
-  for(const r of [.88,.70,.52,.36])for(let i=0;i<40;i++){
-   const a=i*Math.PI/40,next=(i+1)*Math.PI/40,point=t=>({x:m.x+Math.cos(t)*m.rx*r,y:m.y+Math.sin(t)*m.ry*r}),p=point(a),q=point(next);
-   if(m.trail.slice(1).some((v,j)=>distanceToSegment(p.x,p.y,...m.trail[j],...v)<210))continue;
-   const py=p.y-elevationOffset(p.x,p.y),qy=q.y-elevationOffset(q.x,q.y),height=12+m.height*.013+grain(i,r*100)*10;
-   poly(ctx,[[p.x,py],[q.x,qy],[q.x,qy+height],[p.x,py+height]],i%3===0?'#84928b':'#71857e');
-   poly(ctx,[[p.x,py],[q.x,qy],[q.x,qy+3],[p.x,py+3]],'#bcc7a45a');
+ for(const m of MOUNTAINS){
+  if(m.x+m.rx<b.left||m.x-m.rx>b.right||m.y+m.ry<b.top||m.y-m.ry-elevationOffset(m.x,m.y)-1600>b.bottom)continue;
+  const snow=m.id==='frostpeak',segments=72;
+  const point=(r,a)=>{const x=m.x+Math.cos(a)*m.rx*r,y=m.y+Math.sin(a)*m.ry*r;return [x,y-elevationOffset(x,y)];};
+  const outline=r=>Array.from({length:segments},(_,i)=>point(r,i*Math.PI*2/segments));
+  // Opaque, angular rock faces cover the entire impassable slope, including its back.
+  poly(ctx,outline(1),'#394b4c');
+  for(const [band,outer] of [1,.80,.59].entries()){
+   const inner=[.80,.59,.36][band];
+   for(let i=0;i<segments;i++){
+    const a=i*Math.PI*2/segments,next=(i+1)*Math.PI*2/segments;
+    const light=(Math.cos(a-3.8)+1)/2,noise=grain(i,band+91)*12;
+    const base=snow?[104,126,135]:[84,96,96];
+    const color=`rgb(${base.map(v=>Math.round(v+light*40+noise-band*4)).join(',')})`;
+    const p=point(outer,a),q=point(outer,next),r=point(inner,next),s=point(inner,a);
+    poly(ctx,[p,q,r,s],color);
+    poly(ctx,[p,r,s],snow?'#d6e5df20':'#d9dfbc15');
+    // Long, broken seams and dark clefts give the slopes a readable rock structure.
+    if(i%3===0){ctx.strokeStyle='#35484988';ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(...p);ctx.lineTo(...s);ctx.stroke();}
+   }
   }
-  if(altitudeAt((b.left+b.right)/2,(b.top+b.bottom)/2)>400){for(let i=0;i<6;i++){const x=m.x+(grain(i,4)-.5)*m.rx*1.3+Math.sin(time*.00002+i)*35,y=m.y-m.height*.22+(grain(i,8)-.5)*m.ry*.7;ctx.fillStyle='#e6efe63a';ctx.fillRect(x,y,170,18);ctx.fillRect(x+25,y-12,118,12);ctx.fillRect(x+45,y+18,95,7);}}
-
+  ctx.strokeStyle='#364948';ctx.lineWidth=9;ctx.beginPath();outline(1).forEach((p,i)=>i?ctx.lineTo(...p):ctx.moveTo(...p));ctx.closePath();ctx.stroke();
+  // Summit meadow/snow and its rock rim share the actual plateau boundary.
+  poly(ctx,outline(.36),snow?'#d9e5df':m.id==='cloudspine'?'#9eafa0':'#92aa76');
+  ctx.strokeStyle=snow?'#eff7ed':'#c3cfaa';ctx.lineWidth=8;ctx.beginPath();outline(.36).forEach((p,i)=>i?ctx.lineTo(...p):ctx.moveTo(...p));ctx.closePath();ctx.stroke();
+  // Trail edges are projected from the same 175-unit corridor used by collision.
+  for(let i=1;i<m.trail.length;i++){
+   const a=m.trail[i-1],z=m.trail[i],length=Math.hypot(z[0]-a[0],z[1]-a[1]),nx=-(z[1]-a[1])/length,ny=(z[0]-a[0])/length;
+   const edge=side=>Array.from({length:25},(_,j)=>{const t=j/24,x=a[0]+(z[0]-a[0])*t+nx*175*side,y=a[1]+(z[1]-a[1])*t+ny*175*side;return [x,y-elevationOffset(x,y)];});
+   const left=edge(1),right=edge(-1).reverse();
+   poly(ctx,[...left,...right],snow?'#b4b6aa':'#c1ae82');
+   for(const points of [left,right]){ctx.strokeStyle='#544f4388';ctx.lineWidth=6;ctx.beginPath();points.forEach((p,j)=>j?ctx.lineTo(...p):ctx.moveTo(...p));ctx.stroke();}
+   // Exposed trail stones, fixed in world space.
+   for(let j=1;j<24;j+=2){const t=j/24,x=a[0]+(z[0]-a[0])*t,y=a[1]+(z[1]-a[1])*t;rect(ctx,x-18,y-elevationOffset(x,y),36,5,'#e3d1a088');}
+  }
+  for(let i=0;i<330;i++){
+   const a=grain(i,119)*Math.PI*2,r=.38+grain(i,121)*.61,x=m.x+Math.cos(a)*m.rx*r,y=m.y+Math.sin(a)*m.ry*r;
+   if(x<b.left-100||x>b.right+100||y-elevationOffset(x,y)<b.top-100||y-elevationOffset(x,y)>b.bottom+100||m.trail.slice(1).some((v,j)=>distanceToSegment(x,y,...m.trail[j],...v)<205))continue;
+   const py=y-elevationOffset(x,y),size=18+grain(i,123)*40;
+   poly(ctx,[[x-size,py+8],[x-size*.7,py-size*.5],[x,py-size],[x+size,py+7]],snow?'#758b92':'#596c69');
+   poly(ctx,[[x-size*.7,py-size*.5],[x,py-size],[x+size*.4,py-8],[x-size*.4,py]],snow?'#b8cfcc':'#aab4a0');
+  }
+  for(let gy=Math.floor(b.top/85);gy<=Math.ceil((b.bottom+elevationOffset(m.x,m.y))/85);gy++)for(let gx=Math.floor(b.left/85);gx<=Math.ceil(b.right/85);gx++){
+   const x=gx*85+grain(gx,gy,31)*35,y=gy*85+grain(gx,gy,33)*35,r=Math.hypot((x-m.x)/m.rx,(y-m.y)/m.ry),py=y-elevationOffset(x,y);
+   if(r<.365||r>.99||py<b.top-30||py>b.bottom+30||m.trail.slice(1).some((v,j)=>distanceToSegment(x,y,...m.trail[j],...v)<190))continue;
+   const w=18+grain(gx,gy,35)*40;ctx.strokeStyle=snow?'#526d7970':'#364c4b70';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x-w/2,py-9);ctx.lineTo(x,py-15);ctx.lineTo(x+w/2,py-6);ctx.lineTo(x+w/3,py+11);ctx.stroke();
+   rect(ctx,x-w/2,py-12,w*.6,3,snow?'#daece675':'#b6c1a875');
+  }
+  // Serrated side ridges rise above the rear slopes; the central plateau stays open.
+  for(let i=0;i<7;i++){
+   const a=Math.PI+i*Math.PI/6,r=.64+grain(i,73)*.15,x=m.x+Math.cos(a)*m.rx*r,y=m.y+Math.sin(a)*m.ry*r,py=y-elevationOffset(x,y),w=500+grain(i,75)*420,h=850+grain(i,77)*700;
+   poly(ctx,[[x-w,py+90],[x-w*.55,py-h*.30],[x-w*.10,py-h],[x+w*.32,py-h*.48],[x+w,py+90]],snow?'#647d89':'#526563');
+   poly(ctx,[[x-w,py+90],[x-w*.55,py-h*.30],[x-w*.10,py-h],[x+w*.05,py-h*.38],[x,py+70]],snow?'#a8c3c6':'#96a396');
+   poly(ctx,[[x-w*.10,py-h],[x+w*.32,py-h*.48],[x+w,py+90],[x+w*.05,py-h*.38]],snow?'#829da7':'#728883');
+   if(snow||m.id==='cloudspine')poly(ctx,[[x-w*.32,py-h*.65],[x-w*.1,py-h],[x+w*.17,py-h*.68],[x+w*.02,py-h*.73],[x-w*.05,py-h*.64]],snow?'#edf5ed':'#d9e3d9');
+  }
+  const [tx,ty]=m.trail[0];rect(ctx,tx-120,ty-82,240,38,'#314a46');ctx.fillStyle='#f3dfae';ctx.font='bold 19px monospace';ctx.textAlign='center';ctx.fillText('↑ SUMMIT TRAIL',tx,ty-55);
  }
 }
 export function drawTransport(ctx,p,time){
  if(!p.vehicleId||p.underwater)return;ctx.save();ctx.translate(p.x,p.y);
- if(p.vehicleId==='reed-raft'&&p.swimming){for(let i=0;i<6;i++){rect(ctx,-46+i*16,-16,14,38,'#b3aa65');rect(ctx,-43+i*16,-17,5,39,'#dbc786');}rect(ctx,-47,-10,97,3,'#76664d');rect(ctx,-47,13,97,3,'#76664d');}
- else if(p.vehicleId==='wood-scooter'){rect(ctx,-27,-4,58,8,'#b88e56');rect(ctx,-20,4,10,10,'#4b5c5c');rect(ctx,17,4,10,10,'#4b5c5c');rect(ctx,26,-47,5,44,'#8da9a5');rect(ctx,12,-47,24,5,'#bd9f68');}
- else if(p.vehicleId==='crystal-glider'){poly(ctx,[[-82,-66],[0,-110],[82,-66],[0,-79]],'#a9b8d6');poly(ctx,[[-82,-66],[0,-110],[0,-79]],'#7f93bd');rect(ctx,-1,-106,3,49,'#c2a571');}
+ const point=(f,r=0,h=0)=>vehiclePoint(p.facing,f,r,h),shape=(points,color)=>poly(ctx,points.map(v=>point(...v)),color);
+ const line=(points,color,width=3)=>{ctx.strokeStyle=color;ctx.lineWidth=width;ctx.beginPath();points.forEach((v,i)=>i?ctx.lineTo(...point(...v)):ctx.moveTo(...point(...v)));ctx.stroke();};
+ if(p.vehicleId==='reed-raft'&&p.swimming){
+  for(let i=0;i<6;i++){const r=-46+i*16;shape([[-36,r],[-36,r+14],[38,r+14],[50-Math.abs(r)*.25,r+7],[38,r]],'#b3aa65');line([[-34,r+3],[38,r+3]],'#dbc786',5);}
+  line([[-22,-47],[-22,48]],'#76664d',3);line([[23,-47],[23,48]],'#76664d',3);
+  // A reed prow and wake make the raft's heading readable even at rest.
+  shape([[45,-9],[58,0],[45,9]],'#e0d095');
+  if(p.moving){line([[-49,-33],[-65,-42]],'#b9e5d599',3);line([[-49,33],[-65,42]],'#b9e5d599',3);}
+ }else if(p.vehicleId==='wood-scooter'){
+  shape([[-30,-7],[32,-7],[32,7],[-30,7]],'#b88e56');
+  line([[-27,-5],[29,-5]],'#e1b77d',3);
+  for(const f of [-21,23]){const [x,y]=point(f,0,-6);oval(ctx,x,y,3+Math.abs(Math.cos(p.facing))*4,7,'#394b50');oval(ctx,x,y,2,3,'#89989b');}
+  // The front stem moves around the rider but remains vertical when turning.
+  line([[27,0,3],[27,0,49]],'#8da9a5',5);line([[27,-15,49],[27,15,49]],'#d8b880',5);
+ }else if(p.vehicleId==='crystal-glider'){
+  ctx.translate(0,-(p.flightHeight||0));
+  if(Math.abs(Math.cos(p.facing))>.7){
+   const rig=gliderSideRig(p.facing),s=Math.cos(p.facing)<0?-1:1;
+   poly(ctx,rig.sail,'#a8c3dc');
+   poly(ctx,[rig.sail[0],rig.sail[1],rig.sail[2],[15*s,-143]],'#7296bd');
+   poly(ctx,[rig.sail[2],rig.sail[3],rig.sail[4],[15*s,-143]],'#537da7');
+   poly(ctx,[rig.sail[0],[15*s,-143],rig.sail[4],rig.sail[5]],'#b8d6dc');
+   ctx.strokeStyle='#cee6e5';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(...rig.sail[0]);ctx.lineTo(...rig.nose);ctx.stroke();
+   const grips=p.gliding?rig.grips:rig.grips.map(([x,y])=>[x,y-25]);
+   ctx.strokeStyle='#c2ae80';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(...rig.rear);ctx.lineTo(...rig.apex);ctx.lineTo(...grips[1]);ctx.lineTo(...rig.rear);ctx.stroke();
+   ctx.strokeStyle='#52707c';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(grips[0][0]-9*s,grips[0][1]-3);ctx.lineTo(...grips[0]);ctx.lineTo(...grips[1]);ctx.lineTo(grips[1][0]+7*s,grips[1][1]+2);ctx.stroke();
+   poly(ctx,[[110*s,-154],[119*s,-151],[111*s,-145]],'#e2edf2');
+  }else{
+   shape([[0,-100,120],[58,0,120],[0,100,120],[20,0,120]],'#a9b8d6');
+   shape([[0,-100,120],[58,0,120],[20,0,120]],'#7f93bd');
+   line([[55,0,120],[6,0,120]],'#c2a571',3);
+   const grip=p.gliding?78:88;
+   line([[10,-32,126],[10,-25,grip],[10,25,grip],[10,32,126]],'#d0b886',4);
+   shape([[51,-5,120],[61,0,120],[51,5,120]],'#e2edf2');
+  }
+ }
  ctx.restore();
 }
-
 export function drawSeafloor(art,ctx,b,time){
  for(let gy=Math.floor(b.top/230);gy<=Math.ceil(b.bottom/230);gy++)for(let gx=Math.floor(b.left/220);gx<=Math.ceil(b.right/220);gx++){
   if(grain(gx,gy,71)<.60)continue;const x=gx*220+grain(gx,gy,73)*150,y=gy*230+grain(gx,gy,75)*150;if(x<coastline(y)+20)continue;

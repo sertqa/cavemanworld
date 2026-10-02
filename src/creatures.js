@@ -73,8 +73,8 @@ export class Creature {
   }
   update(dt,now,player,canMove=canWalk){
     if(this.aquatic)canMove=(x,y,layer)=>layer==='ocean'?canWalk(x,y,'ocean',this.radius):waterAt(x,y,'surface');
-    if(!this.alive){if(now>=this.respawnAt){this.alive=true;this.health=this.maxHealth;this.x=this.homeX;this.y=this.homeY;}return null;}
-    if(player.layer!==this.layer||Math.hypot(player.x-this.x,player.y-this.y)>Math.max(1100,this.aggroRange*1.4))return null;
+    if(!this.alive){if(now>=this.respawnAt){this.alive=true;this.health=this.maxHealth;this.x=this.homeX;this.y=this.homeY;this.inkWindupUntil=0;this.nextInkAt=now+1500;}return null;}
+    if(player.layer!==this.layer||Math.hypot(player.x-this.x,player.y-this.y)>Math.max(1100,this.aggroRange*1.4)){this.inkWindupUntil=0;return null;}
     const dx=player.x-this.x,dy=player.y-this.y,distance=Math.hypot(dx,dy);
     const hostile=this.temperament==='hostile';
     const portalSafe=hostile&&entranceSafe(player.x,player.y,player.layer,135);
@@ -100,6 +100,17 @@ export class Creature {
         this.windupUntil=0;this.chargeUntil=now+620;this.chargeHit=false;return null;
       }else if(chasing&&distance<330&&now>=this.nextChargeAt){
         this.chargeAngle=angle;this.windupUntil=now+600;this.nextChargeAt=now+3600;return null;
+      }
+    }
+    if(this.kind==='giantSquid'&&this.layer==='ocean'){
+      if(!chasing){this.inkWindupUntil=0;}
+      else if(this.inkWindupUntil){
+        if(now<this.inkWindupUntil)return null;
+        this.inkWindupUntil=0;this.nextInkAt=now+8000;
+        const a=Math.atan2(this.inkAim.y-this.y,this.inkAim.x-this.x),reach=Math.min(500,Math.hypot(this.inkAim.x-this.x,this.inkAim.y-this.y));
+        return {creature:this,ink:{x:this.x+Math.cos(a)*45,y:this.y+Math.sin(a)*45,targetX:this.x+Math.cos(a)*reach,targetY:this.y+Math.sin(a)*reach,layer:this.layer}};
+      }else if(distance<520&&now>=(this.nextInkAt||0)){
+        this.inkAim={x:player.x,y:player.y};this.inkWindupUntil=now+650;return null;
       }
     }
     if(this.ranged&&chasing&&distance<480&&now>=this.nextAttackAt){

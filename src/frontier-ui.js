@@ -6,7 +6,7 @@ import {altitudeAt} from './frontier-world.js';
 const $=id=>document.getElementById(id);
 export class FrontierUI{
  constructor({inventory,quests,npcs,player,diving,buffs,openModal,onChange,toast}){Object.assign(this,{inventory,quests,npcs,player,diving,buffs,openModal,onChange,toast});
-  $('questNpc').replaceChildren();for(const n of npcs.items){const o=document.createElement('option');o.value=n.id;o.textContent=n.name+' · '+n.layer;$('questNpc').append(o);}
+  $('questNpc').replaceChildren();for(const n of npcs.items.filter(n=>n.role!=='brothel')){const o=document.createElement('option');o.value=n.id;o.textContent=n.name+' · '+n.layer;$('questNpc').append(o);}
   $('questNpc').addEventListener('change',()=>this.renderQuest());$('claimQuest').addEventListener('click',()=>{const n=this.selectedNpc();if(Math.hypot(n.x-player.x,n.y-player.y)>180||n.layer!==player.layer)return;const result=quests.claim(n,inventory);$('questFeedback').textContent=result.message;onChange();this.renderQuest();});
   $('questsButton').addEventListener('click',()=>this.showJournal());
   $('machineResource').innerHTML=RESOURCES.map(id=>`<option value="${id}">${resourceName(id)}</option>`).join('');
@@ -38,8 +38,14 @@ export class FrontierUI{
  }
  update(now){if(!$('machineModal').classList.contains('hidden'))this.renderMachine();if(!$('questModal').classList.contains('hidden'))this.renderQuest();
   const underwater=this.player.layer==='ocean',altitude=this.player.layer==='surface'?altitudeAt(this.player.x,this.player.y):0,boost=this.buffs.active(now);
+  $('inkStatus').classList.toggle('hidden',!underwater||!this.player.inkExposure);
+  $('inkStatus').textContent='INKED · swim out of the cloud to clear your vision';
+  $('surfaceButton').classList.toggle('hidden',!underwater);
+  $('surfaceHelp').classList.toggle('hidden',!underwater&&!this.diving.surfaceLock);
+  $('surfaceHelp').textContent=underwater?'Ascend anywhere · then swim west to shore':'On the surface · swim west to shore · V dives again';
+  $('surfaceButton').classList.toggle('low-air',underwater&&this.diving.breath<10);
   $('breathBlock').classList.toggle('hidden',!underwater);$('altitudeStatus').classList.toggle('hidden',altitude<10);$('buffStatus').classList.toggle('hidden',!boost);
-  $('expeditionCard').classList.toggle('inactive',!underwater&&altitude<10&&!boost);
+  $('expeditionCard').classList.toggle('inactive',!underwater&&!this.diving.surfaceLock&&altitude<10&&!boost);
   $('breathText').textContent=this.inventory.equippedGear?.id==='tidekeeper-armor'?'Water breathing':`${Math.ceil(this.diving.breath)} / ${this.diving.maxBreath} sec`;$('breathFill').style.width=`${100*this.diving.breath/this.diving.maxBreath}%`;
   $('altitudeStatus').textContent=`Altitude ${Math.round(altitude)} m · summit plateaus are buildable`;$('buffStatus').textContent=`+50% health / XP · ${Math.ceil((this.buffs.marijuanaUntil-now)/1000)} sec`;
  }
